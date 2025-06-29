@@ -1,11 +1,17 @@
-import React, { useState, useMemo } from 'react';
-import { Plus, Package, Users, Receipt, CreditCard, TrendingUp, IndianRupee, Calendar } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Plus, Package, Users, Receipt, CreditCard, TrendingUp, IndianRupee, Calendar, Clock, Settings } from 'lucide-react';
 import { ByProduct, Customer, Product, SaleInvoice, Payment, Expense } from '../types';
 import { formatDecimal, formatCurrency, calculateDaysDue, getGSTRate } from '../utils/calculations';
+import { 
+  saveByProducts, loadByProducts, saveCustomers, loadCustomers, 
+  saveProducts, loadProducts, saveSales, loadSales, 
+  savePayments, loadPayments, saveExpenses, loadExpenses 
+} from '../utils/dataStorage';
 import StatsCard from './StatsCard';
+import DataBackupManager from './DataBackupManager';
 
 const ByProductsRevenue: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'byproducts' | 'customers' | 'products' | 'sales' | 'payments' | 'expenses'>('byproducts');
+  const [activeTab, setActiveTab] = useState<'byproducts' | 'customers' | 'products' | 'sales' | 'payments' | 'expenses' | 'backup'>('byproducts');
   const [byProducts, setByProducts] = useState<ByProduct[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -13,6 +19,41 @@ const ByProductsRevenue: React.FC = () => {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [showAddForm, setShowAddForm] = useState(false);
+
+  // Load data on component mount
+  useEffect(() => {
+    setByProducts(loadByProducts());
+    setCustomers(loadCustomers());
+    setProducts(loadProducts());
+    setSales(loadSales());
+    setPayments(loadPayments());
+    setExpenses(loadExpenses());
+  }, []);
+
+  // Auto-save data when state changes
+  useEffect(() => {
+    saveByProducts(byProducts);
+  }, [byProducts]);
+
+  useEffect(() => {
+    saveCustomers(customers);
+  }, [customers]);
+
+  useEffect(() => {
+    saveProducts(products);
+  }, [products]);
+
+  useEffect(() => {
+    saveSales(sales);
+  }, [sales]);
+
+  useEffect(() => {
+    savePayments(payments);
+  }, [payments]);
+
+  useEffect(() => {
+    saveExpenses(expenses);
+  }, [expenses]);
 
   // Form states
   const [byProductForm, setByProductForm] = useState({
@@ -133,13 +174,24 @@ const ByProductsRevenue: React.FC = () => {
     setShowAddForm(false);
   };
 
+  const handleDataImported = () => {
+    // Reload all data after import
+    setByProducts(loadByProducts());
+    setCustomers(loadCustomers());
+    setProducts(loadProducts());
+    setSales(loadSales());
+    setPayments(loadPayments());
+    setExpenses(loadExpenses());
+  };
+
   const tabs = [
     { id: 'byproducts', label: 'By-Products', icon: Package },
     { id: 'customers', label: 'Customers', icon: Users },
     { id: 'products', label: 'Products/Services', icon: Receipt },
     { id: 'sales', label: 'Sales', icon: TrendingUp },
     { id: 'payments', label: 'Payments', icon: CreditCard },
-    { id: 'expenses', label: 'Expenses', icon: IndianRupee }
+    { id: 'expenses', label: 'Expenses', icon: IndianRupee },
+    { id: 'backup', label: 'Data Backup', icon: Settings }
   ];
 
   return (
@@ -151,49 +203,53 @@ const ByProductsRevenue: React.FC = () => {
             <h1 className="text-3xl font-bold text-gray-900">By-Products & Revenue</h1>
             <p className="text-gray-600 mt-2">Manage by-products, customers, sales and mill operations</p>
           </div>
-          <button
-            onClick={() => setShowAddForm(true)}
-            className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-emerald-500 to-blue-600 text-white text-sm font-medium rounded-lg hover:from-emerald-600 hover:to-blue-700 transition-all duration-200 shadow-md hover:shadow-lg"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Add {activeTab === 'byproducts' ? 'By-Product' : activeTab === 'customers' ? 'Customer' : activeTab === 'products' ? 'Product' : activeTab === 'expenses' ? 'Expense' : activeTab === 'sales' ? 'Sale' : 'Payment'}
-          </button>
+          {activeTab !== 'backup' && (
+            <button
+              onClick={() => setShowAddForm(true)}
+              className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-emerald-500 to-blue-600 text-white text-sm font-medium rounded-lg hover:from-emerald-600 hover:to-blue-700 transition-all duration-200 shadow-md hover:shadow-lg"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Add {activeTab === 'byproducts' ? 'By-Product' : activeTab === 'customers' ? 'Customer' : activeTab === 'products' ? 'Product' : activeTab === 'expenses' ? 'Expense' : activeTab === 'sales' ? 'Sale' : 'Payment'}
+            </button>
+          )}
         </div>
 
         {/* Summary Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
-          <StatsCard
-            title="Total Sales"
-            value={formatCurrency(totalSales)}
-            icon={<TrendingUp className="h-6 w-6" />}
-            color="from-green-500 to-green-600"
-          />
-          <StatsCard
-            title="Received"
-            value={formatCurrency(totalReceived)}
-            icon={<CreditCard className="h-6 w-6" />}
-            color="from-blue-500 to-blue-600"
-          />
-          <StatsCard
-            title="Outstanding"
-            value={formatCurrency(totalOutstanding)}
-            icon={<Clock className="h-6 w-6" />}
-            color="from-orange-500 to-orange-600"
-          />
-          <StatsCard
-            title="Expenses"
-            value={formatCurrency(totalExpenses)}
-            icon={<IndianRupee className="h-6 w-6" />}
-            color="from-red-500 to-red-600"
-          />
-          <StatsCard
-            title="By-Products"
-            value={formatDecimal(byProducts.reduce((sum, product) => sum + product.quantity, 0))}
-            subtitle="Total Quintals"
-            icon={<Package className="h-6 w-6" />}
-            color="from-purple-500 to-purple-600"
-          />
-        </div>
+        {activeTab !== 'backup' && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
+            <StatsCard
+              title="Total Sales"
+              value={formatCurrency(totalSales)}
+              icon={<TrendingUp className="h-6 w-6" />}
+              color="from-green-500 to-green-600"
+            />
+            <StatsCard
+              title="Received"
+              value={formatCurrency(totalReceived)}
+              icon={<CreditCard className="h-6 w-6" />}
+              color="from-blue-500 to-blue-600"
+            />
+            <StatsCard
+              title="Outstanding"
+              value={formatCurrency(totalOutstanding)}
+              icon={<Clock className="h-6 w-6" />}
+              color="from-orange-500 to-orange-600"
+            />
+            <StatsCard
+              title="Expenses"
+              value={formatCurrency(totalExpenses)}
+              icon={<IndianRupee className="h-6 w-6" />}
+              color="from-red-500 to-red-600"
+            />
+            <StatsCard
+              title="By-Products"
+              value={formatDecimal(byProducts.reduce((sum, product) => sum + product.quantity, 0))}
+              subtitle="Total Quintals"
+              icon={<Package className="h-6 w-6" />}
+              color="from-purple-500 to-purple-600"
+            />
+          </div>
+        )}
 
         {/* Tab Navigation */}
         <div className="bg-white rounded-xl shadow-lg border border-gray-200 mb-8">
@@ -221,6 +277,10 @@ const ByProductsRevenue: React.FC = () => {
 
           {/* Tab Content */}
           <div className="p-6">
+            {activeTab === 'backup' && (
+              <DataBackupManager onDataImported={handleDataImported} />
+            )}
+
             {activeTab === 'byproducts' && (
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">By-Products Inventory</h3>
@@ -476,209 +536,6 @@ const ByProductsRevenue: React.FC = () => {
                     <div className="flex space-x-3 pt-4">
                       <button type="submit" className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors duration-200">
                         Add Customer
-                      </button>
-                      <button type="button" onClick={() => setShowAddForm(false)} className="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-400 transition-colors duration-200">
-                        Cancel
-                      </button>
-                    </div>
-                  </form>
-                )}
-
-                {activeTab === 'products' && (
-                  <form onSubmit={handleProductSubmit} className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Product Name</label>
-                      <input
-                        type="text"
-                        value={productForm.name}
-                        onChange={(e) => setProductForm({ ...productForm, name: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
-                      <select
-                        value={productForm.category}
-                        onChange={(e) => setProductForm({ ...productForm, category: e.target.value as Product['category'] })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      >
-                        <option value="rice">Rice</option>
-                        <option value="bran">Bran</option>
-                        <option value="broken-rice">Broken Rice</option>
-                        <option value="param">Param</option>
-                        <option value="rejection-rice">Rejection Rice</option>
-                        <option value="service">Service</option>
-                        <option value="other">Other</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Unit</label>
-                      <select
-                        value={productForm.unit}
-                        onChange={(e) => setProductForm({ ...productForm, unit: e.target.value as Product['unit'] })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      >
-                        <option value="qtl">Quintal</option>
-                        <option value="kg">Kilogram</option>
-                        <option value="bag">Bag</option>
-                        <option value="hour">Hour</option>
-                        <option value="day">Day</option>
-                        <option value="trip">Trip</option>
-                        <option value="piece">Piece</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Base Rate (₹)</label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={productForm.baseRate}
-                        onChange={(e) => setProductForm({ ...productForm, baseRate: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">GST Slab</label>
-                      <select
-                        value={productForm.gstSlab}
-                        onChange={(e) => setProductForm({ ...productForm, gstSlab: e.target.value as Product['gstSlab'] })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      >
-                        <option value="exempt">Exempt</option>
-                        <option value="0%">0%</option>
-                        <option value="5%">5%</option>
-                        <option value="12%">12%</option>
-                        <option value="18%">18%</option>
-                        <option value="28%">28%</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                      <textarea
-                        value={productForm.description}
-                        onChange={(e) => setProductForm({ ...productForm, description: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        rows={3}
-                      />
-                    </div>
-                    <div className="flex space-x-3 pt-4">
-                      <button type="submit" className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors duration-200">
-                        Add Product
-                      </button>
-                      <button type="button" onClick={() => setShowAddForm(false)} className="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-400 transition-colors duration-200">
-                        Cancel
-                      </button>
-                    </div>
-                  </form>
-                )}
-
-                {activeTab === 'expenses' && (
-                  <form onSubmit={handleExpenseSubmit} className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
-                      <select
-                        value={expenseForm.category}
-                        onChange={(e) => setExpenseForm({ ...expenseForm, category: e.target.value as Expense['category'] })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      >
-                        <option value="electricity">Electricity</option>
-                        <option value="freight">Freight</option>
-                        <option value="salary">Salary</option>
-                        <option value="repairs">Repairs</option>
-                        <option value="spares">Spares</option>
-                        <option value="fuel">Fuel</option>
-                        <option value="other">Other</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                      <input
-                        type="text"
-                        value={expenseForm.description}
-                        onChange={(e) => setExpenseForm({ ...expenseForm, description: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Amount (₹)</label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={expenseForm.amount}
-                        onChange={(e) => setExpenseForm({ ...expenseForm, amount: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Expense Date</label>
-                      <input
-                        type="date"
-                        value={expenseForm.expenseDate}
-                        onChange={(e) => setExpenseForm({ ...expenseForm, expenseDate: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Vendor Name</label>
-                      <input
-                        type="text"
-                        value={expenseForm.vendorName}
-                        onChange={(e) => setExpenseForm({ ...expenseForm, vendorName: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Bill Number</label>
-                        <input
-                          type="text"
-                          value={expenseForm.billNumber}
-                          onChange={(e) => setExpenseForm({ ...expenseForm, billNumber: e.target.value })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">GST Amount (₹)</label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={expenseForm.gstAmount}
-                          onChange={(e) => setExpenseForm({ ...expenseForm, gstAmount: e.target.value })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Payment Method</label>
-                      <select
-                        value={expenseForm.paymentMethod}
-                        onChange={(e) => setExpenseForm({ ...expenseForm, paymentMethod: e.target.value as Expense['paymentMethod'] })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      >
-                        <option value="cash">Cash</option>
-                        <option value="cheque">Cheque</option>
-                        <option value="bank-transfer">Bank Transfer</option>
-                        <option value="upi">UPI</option>
-                        <option value="other">Other</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
-                      <textarea
-                        value={expenseForm.notes}
-                        onChange={(e) => setExpenseForm({ ...expenseForm, notes: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        rows={3}
-                      />
-                    </div>
-                    <div className="flex space-x-3 pt-4">
-                      <button type="submit" className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors duration-200">
-                        Add Expense
                       </button>
                       <button type="button" onClick={() => setShowAddForm(false)} className="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-400 transition-colors duration-200">
                         Cancel
