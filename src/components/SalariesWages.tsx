@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Plus, Users, Calendar, IndianRupee, Clock, Edit, Save, X, Download } from 'lucide-react';
+import { Plus, Users, Calendar, IndianRupee, Clock, Edit, Save, X, Download, Trash2 } from 'lucide-react';
 import { HamaliWork, LabourWage, SupervisorSalary } from '../types';
 import { formatCurrency, formatDecimal } from '../utils/calculations';
 import { 
@@ -36,14 +36,57 @@ const SalariesWages: React.FC = () => {
     saveSupervisorSalaries(supervisorSalaries);
   }, [supervisorSalaries]);
 
+  // Predefined work types with rates from Surya Industries table
+  const workTypes = {
+    // PADDY
+    'paddy-unloading-to-net': { label: 'PADDY UNLOADING TO NET / NET TO LOADING', rate: 4.00, unit: 'bags' },
+    'paddy-direct-batti': { label: 'PADDY DIRECT BATTI', rate: 3.50, unit: 'bags' },
+    'paddy-net-to-batti': { label: 'PADDY NET TO BATTI', rate: 3.50, unit: 'bags' },
+    'paddy-loose-filling': { label: 'PADDY LOOSE FILLING TO PC', rate: 2.00, unit: 'bags' },
+    'paddy-loading-vehicle': { label: 'PADDY LOADING WITH VEHICLE TO PC', rate: 5.00, unit: 'bags' },
+    'paddy-net-to-palti': { label: 'PADDY NET TO PALTI & LORRY LOADING', rate: 5.50, unit: 'bags' },
+    'paddy-lorry-loading-mamul': { label: 'PADDY LORRY LOADING MAMUL OTHER STATES', rate: 30.00, unit: 'ton' },
+    
+    // RICE
+    'fci-rice-loading': { label: 'FCI RICE LOADING+KANTA+CHAPA+STITCHING+STENCIL', rate: 6.00, unit: 'bags' },
+    'rice-26kg-kanta': { label: 'RICE 26KG KANTA+STITCHING TO NET/LOADING', rate: 2.50, unit: 'bags' },
+    'rice-26kg-net': { label: 'RICE 26KGS NET TO LOADING', rate: 1.60, unit: 'bags' },
+    'rice-net-loading': { label: 'RICE NET TO LOADING/UNLOADING', rate: 2.00, unit: 'bags' },
+    'rice-unloading-palty': { label: 'RICE UNLOADING & PALTY/NET', rate: 2.30, unit: 'bags' },
+    'fci-rice-lorry-thadu': { label: 'FCI RICE LORRY THADU BATHA', rate: 400.00, unit: 'ack' },
+    
+    // BRAN
+    'bran-filling-loading': { label: 'BRAN FILLING & LOADING', rate: 100.00, unit: 'ton' },
+    'bran-loading-mamul': { label: 'BRAN LOADING MAMUL', rate: 30.00, unit: 'ton' },
+    
+    // BROKEN RICE
+    'broken-rice-filling': { label: 'BROKEN RICE FILLING & NET/LOADING', rate: 4.00, unit: 'bags' },
+    'broken-rice-kanta': { label: 'BROKEN RICE FILLING, KANTA & NET/LOADING', rate: 5.00, unit: 'bags' },
+    'broken-rice-mamul': { label: 'BROKEN RICE LOADING MAMUL', rate: 30.00, unit: 'ton' },
+    'broken-rice-net': { label: 'BROKEN RICE NET TO LOADING', rate: 2.00, unit: 'bags' },
+    
+    // PARAM
+    'param-filling': { label: 'PARAM FILLING & NET/LOADING', rate: 80.00, unit: 'ton' },
+    'param-mamul': { label: 'PARAM LOADING MAMUL', rate: 30.00, unit: 'ton' },
+    'param-net': { label: 'PARAM NET TO LOADING', rate: 2.00, unit: 'bags' },
+    
+    // OTHERS
+    'frk-lorry-unloading': { label: 'FRK LORRY UNLOADING', rate: 1.60, unit: 'bags' },
+    'frk-blender-loading': { label: 'FRK BLENDER LOADING', rate: 1.00, unit: 'bags' },
+    'gunny-bales-unloading': { label: 'NEW GUNNIES BALES UNLOADING', rate: 25.00, unit: 'bale' },
+    'gunny-bundeling': { label: 'GUNNIES BUNDELING AND NET', rate: 2.00, unit: 'bags' },
+    'net-to-palty': { label: 'PADDY/RICE/BROKENRICE/ NET TO PALTY', rate: 1.50, unit: 'bags' },
+    'hopper-loading': { label: 'HOPPER LOADING (BROKEN, REJECTION, RICE)', rate: 3.00, unit: 'bags' }
+  };
+
   // Form states
   const [hamaliForm, setHamaliForm] = useState({
     workerName: '',
-    workType: 'unloading-paddy' as HamaliWork['workType'],
+    workType: 'paddy-unloading-to-net' as keyof typeof workTypes,
     workDescription: '',
     quantity: '',
     unit: 'bags' as HamaliWork['unit'],
-    ratePerUnit: '',
+    ratePerUnit: '4.00',
     workDate: '',
     notes: ''
   });
@@ -68,9 +111,9 @@ const SalariesWages: React.FC = () => {
     notes: ''
   });
 
-  const [editHamaliForm, setEditHamaliForm] = useState({
+  const [editForm, setEditForm] = useState({
     workerName: '',
-    workType: 'unloading-paddy' as HamaliWork['workType'],
+    workType: 'paddy-unloading-to-net' as keyof typeof workTypes,
     workDescription: '',
     quantity: '',
     unit: 'bags' as HamaliWork['unit'],
@@ -100,6 +143,31 @@ const SalariesWages: React.FC = () => {
     [hamaliWork]
   );
 
+  const pendingHamaliCount = useMemo(() => hamaliWork.filter(work => work.paymentStatus === 'pending').length, [hamaliWork]);
+  const paidHamaliCount = useMemo(() => hamaliWork.filter(work => work.paymentStatus === 'paid').length, [hamaliWork]);
+
+  // Handle work type change
+  const handleWorkTypeChange = (workType: keyof typeof workTypes, isEdit = false) => {
+    const selectedWork = workTypes[workType];
+    if (isEdit) {
+      setEditForm(prev => ({
+        ...prev,
+        workType,
+        workDescription: selectedWork.label,
+        unit: selectedWork.unit as HamaliWork['unit'],
+        ratePerUnit: selectedWork.rate.toString()
+      }));
+    } else {
+      setHamaliForm(prev => ({
+        ...prev,
+        workType,
+        workDescription: selectedWork.label,
+        unit: selectedWork.unit as HamaliWork['unit'],
+        ratePerUnit: selectedWork.rate.toString()
+      }));
+    }
+  };
+
   // Handle form submissions
   const handleHamaliSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -108,7 +176,7 @@ const SalariesWages: React.FC = () => {
     const newHamaliWork: HamaliWork = {
       id: Date.now().toString(),
       workerName: hamaliForm.workerName,
-      workType: hamaliForm.workType,
+      workType: hamaliForm.workType as HamaliWork['workType'],
       workDescription: hamaliForm.workDescription,
       quantity,
       unit: hamaliForm.unit,
@@ -119,7 +187,16 @@ const SalariesWages: React.FC = () => {
       notes: hamaliForm.notes
     };
     setHamaliWork([...hamaliWork, newHamaliWork]);
-    setHamaliForm({ workerName: '', workType: 'unloading-paddy', workDescription: '', quantity: '', unit: 'bags', ratePerUnit: '', workDate: '', notes: '' });
+    setHamaliForm({ 
+      workerName: '', 
+      workType: 'paddy-unloading-to-net', 
+      workDescription: workTypes['paddy-unloading-to-net'].label, 
+      quantity: '', 
+      unit: 'bags', 
+      ratePerUnit: '4.00', 
+      workDate: '', 
+      notes: '' 
+    });
     setShowAddForm(false);
   };
 
@@ -165,11 +242,11 @@ const SalariesWages: React.FC = () => {
     setShowAddForm(false);
   };
 
-  const startEditHamali = (work: HamaliWork) => {
+  const startEdit = (work: HamaliWork) => {
     setEditingItem(work.id);
-    setEditHamaliForm({
+    setEditForm({
       workerName: work.workerName,
-      workType: work.workType,
+      workType: work.workType as keyof typeof workTypes,
       workDescription: work.workDescription,
       quantity: work.quantity.toString(),
       unit: work.unit,
@@ -179,21 +256,21 @@ const SalariesWages: React.FC = () => {
     });
   };
 
-  const saveEditHamali = (id: string) => {
-    const quantity = parseFloat(editHamaliForm.quantity);
-    const rate = parseFloat(editHamaliForm.ratePerUnit);
+  const saveEdit = (id: string) => {
+    const quantity = parseFloat(editForm.quantity);
+    const rate = parseFloat(editForm.ratePerUnit);
     setHamaliWork(hamaliWork.map(work => 
       work.id === id ? {
         ...work,
-        workerName: editHamaliForm.workerName,
-        workType: editHamaliForm.workType,
-        workDescription: editHamaliForm.workDescription,
+        workerName: editForm.workerName,
+        workType: editForm.workType as HamaliWork['workType'],
+        workDescription: editForm.workDescription,
         quantity,
-        unit: editHamaliForm.unit,
+        unit: editForm.unit,
         ratePerUnit: rate,
         totalAmount: quantity * rate,
-        workDate: editHamaliForm.workDate,
-        notes: editHamaliForm.notes
+        workDate: editForm.workDate,
+        notes: editForm.notes
       } : work
     ));
     setEditingItem(null);
@@ -201,7 +278,22 @@ const SalariesWages: React.FC = () => {
 
   const cancelEdit = () => {
     setEditingItem(null);
-    setEditHamaliForm({ workerName: '', workType: 'unloading-paddy', workDescription: '', quantity: '', unit: 'bags', ratePerUnit: '', workDate: '', notes: '' });
+    setEditForm({ 
+      workerName: '', 
+      workType: 'paddy-unloading-to-net', 
+      workDescription: '', 
+      quantity: '', 
+      unit: 'bags', 
+      ratePerUnit: '', 
+      workDate: '', 
+      notes: '' 
+    });
+  };
+
+  const deleteHamaliWork = (id: string) => {
+    if (window.confirm('Are you sure you want to delete this hamali work record?')) {
+      setHamaliWork(hamaliWork.filter(work => work.id !== id));
+    }
   };
 
   const toggleHamaliPayment = (id: string) => {
@@ -224,12 +316,6 @@ const SalariesWages: React.FC = () => {
         paymentDate: salary.paymentStatus === 'pending' ? new Date().toISOString().split('T')[0] : undefined
       } : salary
     ));
-  };
-
-  const deleteHamaliWork = (id: string) => {
-    if (window.confirm('Are you sure you want to delete this hamali work record?')) {
-      setHamaliWork(hamaliWork.filter(work => work.id !== id));
-    }
   };
 
   const exportData = () => {
@@ -256,9 +342,8 @@ const SalariesWages: React.FC = () => {
       filename = 'hamali-work-records.csv';
     } else if (activeTab === 'labour') {
       csvContent = [
-        ['S.No', 'Worker Name', 'Description', 'Days Worked', 'Rate/Day', 'Total Amount', 'Advance Paid', 'Remaining', 'Date', 'Status', 'Notes'],
-        ...labourWages.map((wage, index) => [
-          index + 1,
+        ['Worker Name', 'Description', 'Days Worked', 'Rate/Day', 'Total Amount', 'Advance Paid', 'Remaining', 'Date', 'Status', 'Notes'],
+        ...labourWages.map(wage => [
           wage.workerName,
           wage.workDescription,
           wage.daysWorked,
@@ -274,9 +359,8 @@ const SalariesWages: React.FC = () => {
       filename = 'labour-wage-records.csv';
     } else {
       csvContent = [
-        ['S.No', 'Supervisor Name', 'Designation', 'Monthly Salary', 'Month', 'Paid Amount', 'Payment Date', 'Status', 'Notes'],
-        ...supervisorSalaries.map((salary, index) => [
-          index + 1,
+        ['Supervisor Name', 'Designation', 'Monthly Salary', 'Month', 'Paid Amount', 'Payment Date', 'Status', 'Notes'],
+        ...supervisorSalaries.map(salary => [
           salary.supervisorName,
           salary.designation,
           salary.monthlySalary,
@@ -391,9 +475,7 @@ const SalariesWages: React.FC = () => {
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-semibold text-gray-900">Hamali Work Records</h3>
                   <div className="text-sm text-gray-600">
-                    Total Records: {hamaliWork.length} | 
-                    Pending: {hamaliWork.filter(w => w.paymentStatus === 'pending').length} | 
-                    Paid: {hamaliWork.filter(w => w.paymentStatus === 'paid').length}
+                    Total: {hamaliWork.length} records | Pending: {pendingHamaliCount} | Paid: {paidHamaliCount}
                   </div>
                 </div>
                 {hamaliWork.length === 0 ? (
@@ -408,8 +490,7 @@ const SalariesWages: React.FC = () => {
                         <tr>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">S.No</th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Worker</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Work Type</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Work Description</th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quantity</th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rate</th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
@@ -428,40 +509,25 @@ const SalariesWages: React.FC = () => {
                               {editingItem === work.id ? (
                                 <input
                                   type="text"
-                                  value={editHamaliForm.workerName}
-                                  onChange={(e) => setEditHamaliForm({ ...editHamaliForm, workerName: e.target.value })}
+                                  value={editForm.workerName}
+                                  onChange={(e) => setEditForm({ ...editForm, workerName: e.target.value })}
                                   className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
                                 />
                               ) : (
                                 work.workerName
                               )}
                             </td>
-                            <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-600">
-                              {editingItem === work.id ? (
-                                <select
-                                  value={editHamaliForm.workType}
-                                  onChange={(e) => setEditHamaliForm({ ...editHamaliForm, workType: e.target.value as HamaliWork['workType'] })}
-                                  className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
-                                >
-                                  <option value="unloading-paddy">Unloading Paddy</option>
-                                  <option value="loading-rice">Loading Rice</option>
-                                  <option value="cleaning">Cleaning</option>
-                                  <option value="bagging">Bagging</option>
-                                  <option value="gunny-repair">Gunny Repair</option>
-                                  <option value="other">Other</option>
-                                </select>
-                              ) : (
-                                <span className="capitalize">{work.workType.replace('-', ' ')}</span>
-                              )}
-                            </td>
                             <td className="px-4 py-4 text-sm text-gray-600 max-w-xs">
                               {editingItem === work.id ? (
-                                <input
-                                  type="text"
-                                  value={editHamaliForm.workDescription}
-                                  onChange={(e) => setEditHamaliForm({ ...editHamaliForm, workDescription: e.target.value })}
+                                <select
+                                  value={editForm.workType}
+                                  onChange={(e) => handleWorkTypeChange(e.target.value as keyof typeof workTypes, true)}
                                   className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
-                                />
+                                >
+                                  {Object.entries(workTypes).map(([key, value]) => (
+                                    <option key={key} value={key}>{value.label}</option>
+                                  ))}
+                                </select>
                               ) : (
                                 <div className="truncate" title={work.workDescription}>
                                   {work.workDescription}
@@ -474,21 +540,11 @@ const SalariesWages: React.FC = () => {
                                   <input
                                     type="number"
                                     step="0.01"
-                                    value={editHamaliForm.quantity}
-                                    onChange={(e) => setEditHamaliForm({ ...editHamaliForm, quantity: e.target.value })}
+                                    value={editForm.quantity}
+                                    onChange={(e) => setEditForm({ ...editForm, quantity: e.target.value })}
                                     className="w-16 px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
                                   />
-                                  <select
-                                    value={editHamaliForm.unit}
-                                    onChange={(e) => setEditHamaliForm({ ...editHamaliForm, unit: e.target.value as HamaliWork['unit'] })}
-                                    className="w-16 px-1 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
-                                  >
-                                    <option value="bags">Bags</option>
-                                    <option value="qtl">Qtl</option>
-                                    <option value="hours">Hrs</option>
-                                    <option value="days">Days</option>
-                                    <option value="pieces">Pcs</option>
-                                  </select>
+                                  <span className="text-xs text-gray-500 self-center">{editForm.unit}</span>
                                 </div>
                               ) : (
                                 `${formatDecimal(work.quantity, 0)} ${work.unit}`
@@ -499,8 +555,8 @@ const SalariesWages: React.FC = () => {
                                 <input
                                   type="number"
                                   step="0.01"
-                                  value={editHamaliForm.ratePerUnit}
-                                  onChange={(e) => setEditHamaliForm({ ...editHamaliForm, ratePerUnit: e.target.value })}
+                                  value={editForm.ratePerUnit}
+                                  onChange={(e) => setEditForm({ ...editForm, ratePerUnit: e.target.value })}
                                   className="w-20 px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
                                 />
                               ) : (
@@ -509,9 +565,7 @@ const SalariesWages: React.FC = () => {
                             </td>
                             <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
                               {editingItem === work.id ? (
-                                <span className="text-blue-600 font-semibold">
-                                  {formatCurrency(parseFloat(editHamaliForm.quantity || '0') * parseFloat(editHamaliForm.ratePerUnit || '0'))}
-                                </span>
+                                formatCurrency(parseFloat(editForm.quantity || '0') * parseFloat(editForm.ratePerUnit || '0'))
                               ) : (
                                 formatCurrency(work.totalAmount)
                               )}
@@ -520,9 +574,9 @@ const SalariesWages: React.FC = () => {
                               {editingItem === work.id ? (
                                 <input
                                   type="date"
-                                  value={editHamaliForm.workDate}
-                                  onChange={(e) => setEditHamaliForm({ ...editHamaliForm, workDate: e.target.value })}
-                                  className="w-32 px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
+                                  value={editForm.workDate}
+                                  onChange={(e) => setEditForm({ ...editForm, workDate: e.target.value })}
+                                  className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
                                 />
                               ) : (
                                 new Date(work.workDate).toLocaleDateString()
@@ -540,7 +594,7 @@ const SalariesWages: React.FC = () => {
                                 {editingItem === work.id ? (
                                   <>
                                     <button
-                                      onClick={() => saveEditHamali(work.id)}
+                                      onClick={() => saveEdit(work.id)}
                                       className="text-green-600 hover:text-green-800"
                                       title="Save"
                                     >
@@ -557,7 +611,7 @@ const SalariesWages: React.FC = () => {
                                 ) : (
                                   <>
                                     <button
-                                      onClick={() => startEditHamali(work)}
+                                      onClick={() => startEdit(work)}
                                       className="text-blue-600 hover:text-blue-800"
                                       title="Edit"
                                     >
@@ -577,7 +631,7 @@ const SalariesWages: React.FC = () => {
                                       className="text-red-600 hover:text-red-800"
                                       title="Delete"
                                     >
-                                      <X className="h-4 w-4" />
+                                      <Trash2 className="h-4 w-4" />
                                     </button>
                                   </>
                                 )}
@@ -767,15 +821,12 @@ const SalariesWages: React.FC = () => {
                       <label className="block text-sm font-medium text-gray-700 mb-1">Work Type</label>
                       <select
                         value={hamaliForm.workType}
-                        onChange={(e) => setHamaliForm({ ...hamaliForm, workType: e.target.value as HamaliWork['workType'] })}
+                        onChange={(e) => handleWorkTypeChange(e.target.value as keyof typeof workTypes)}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       >
-                        <option value="unloading-paddy">Unloading Paddy</option>
-                        <option value="loading-rice">Loading Rice</option>
-                        <option value="cleaning">Cleaning</option>
-                        <option value="bagging">Bagging</option>
-                        <option value="gunny-repair">Gunny Repair</option>
-                        <option value="other">Other</option>
+                        {Object.entries(workTypes).map(([key, value]) => (
+                          <option key={key} value={key}>{value.label}</option>
+                        ))}
                       </select>
                     </div>
                     <div>
@@ -786,6 +837,7 @@ const SalariesWages: React.FC = () => {
                         onChange={(e) => setHamaliForm({ ...hamaliForm, workDescription: e.target.value })}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         required
+                        readOnly
                       />
                     </div>
                     <div className="grid grid-cols-2 gap-4">
@@ -802,17 +854,12 @@ const SalariesWages: React.FC = () => {
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Unit</label>
-                        <select
+                        <input
+                          type="text"
                           value={hamaliForm.unit}
-                          onChange={(e) => setHamaliForm({ ...hamaliForm, unit: e.target.value as HamaliWork['unit'] })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        >
-                          <option value="bags">Bags</option>
-                          <option value="qtl">Quintals</option>
-                          <option value="hours">Hours</option>
-                          <option value="days">Days</option>
-                          <option value="pieces">Pieces</option>
-                        </select>
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100"
+                          readOnly
+                        />
                       </div>
                     </div>
                     <div>
