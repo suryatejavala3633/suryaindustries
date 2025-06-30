@@ -47,8 +47,10 @@ const STORAGE_KEYS = {
 // Generic Local Storage Functions
 export const saveToLocalStorage = <T>(key: string, data: T[]): void => {
   try {
-    localStorage.setItem(key, JSON.stringify(data));
+    const jsonData = JSON.stringify(data);
+    localStorage.setItem(key, jsonData);
     localStorage.setItem(STORAGE_KEYS.LAST_SYNC, new Date().toISOString());
+    console.log(`Saved ${data.length} items to ${key}`);
   } catch (error) {
     console.error('Error saving to localStorage:', error);
   }
@@ -57,7 +59,13 @@ export const saveToLocalStorage = <T>(key: string, data: T[]): void => {
 export const loadFromLocalStorage = <T>(key: string): T[] => {
   try {
     const data = localStorage.getItem(key);
-    return data ? JSON.parse(data) : [];
+    if (!data) {
+      console.log(`No data found for key: ${key}`);
+      return [];
+    }
+    const parsed = JSON.parse(data);
+    console.log(`Loaded ${parsed.length} items from ${key}`);
+    return parsed;
   } catch (error) {
     console.error('Error loading from localStorage:', error);
     return [];
@@ -65,14 +73,38 @@ export const loadFromLocalStorage = <T>(key: string): T[] => {
 };
 
 // Specific Data Storage Functions
-export const saveByProducts = (data: ByProduct[]) => saveToLocalStorage(STORAGE_KEYS.BY_PRODUCTS, data);
-export const loadByProducts = (): ByProduct[] => loadFromLocalStorage(STORAGE_KEYS.BY_PRODUCTS);
+export const saveByProducts = (data: ByProduct[]) => {
+  console.log('Saving by-products:', data);
+  saveToLocalStorage(STORAGE_KEYS.BY_PRODUCTS, data);
+};
 
-export const saveCustomers = (data: Customer[]) => saveToLocalStorage(STORAGE_KEYS.CUSTOMERS, data);
-export const loadCustomers = (): Customer[] => loadFromLocalStorage(STORAGE_KEYS.CUSTOMERS);
+export const loadByProducts = (): ByProduct[] => {
+  const data = loadFromLocalStorage<ByProduct>(STORAGE_KEYS.BY_PRODUCTS);
+  console.log('Loaded by-products:', data);
+  return data;
+};
 
-export const saveProducts = (data: Product[]) => saveToLocalStorage(STORAGE_KEYS.PRODUCTS, data);
-export const loadProducts = (): Product[] => loadFromLocalStorage(STORAGE_KEYS.PRODUCTS);
+export const saveCustomers = (data: Customer[]) => {
+  console.log('Saving customers:', data);
+  saveToLocalStorage(STORAGE_KEYS.CUSTOMERS, data);
+};
+
+export const loadCustomers = (): Customer[] => {
+  const data = loadFromLocalStorage<Customer>(STORAGE_KEYS.CUSTOMERS);
+  console.log('Loaded customers:', data);
+  return data;
+};
+
+export const saveProducts = (data: Product[]) => {
+  console.log('Saving products:', data);
+  saveToLocalStorage(STORAGE_KEYS.PRODUCTS, data);
+};
+
+export const loadProducts = (): Product[] => {
+  const data = loadFromLocalStorage<Product>(STORAGE_KEYS.PRODUCTS);
+  console.log('Loaded products:', data);
+  return data;
+};
 
 export const saveSales = (data: SaleInvoice[]) => saveToLocalStorage(STORAGE_KEYS.SALES, data);
 export const loadSales = (): SaleInvoice[] => loadFromLocalStorage(STORAGE_KEYS.SALES);
@@ -80,8 +112,16 @@ export const loadSales = (): SaleInvoice[] => loadFromLocalStorage(STORAGE_KEYS.
 export const savePayments = (data: Payment[]) => saveToLocalStorage(STORAGE_KEYS.PAYMENTS, data);
 export const loadPayments = (): Payment[] => loadFromLocalStorage(STORAGE_KEYS.PAYMENTS);
 
-export const saveExpenses = (data: Expense[]) => saveToLocalStorage(STORAGE_KEYS.EXPENSES, data);
-export const loadExpenses = (): Expense[] => loadFromLocalStorage(STORAGE_KEYS.EXPENSES);
+export const saveExpenses = (data: Expense[]) => {
+  console.log('Saving expenses:', data);
+  saveToLocalStorage(STORAGE_KEYS.EXPENSES, data);
+};
+
+export const loadExpenses = (): Expense[] => {
+  const data = loadFromLocalStorage<Expense>(STORAGE_KEYS.EXPENSES);
+  console.log('Loaded expenses:', data);
+  return data;
+};
 
 export const saveHamaliWork = (data: HamaliWork[]) => saveToLocalStorage(STORAGE_KEYS.HAMALI_WORK, data);
 export const loadHamaliWork = (): HamaliWork[] => loadFromLocalStorage(STORAGE_KEYS.HAMALI_WORK);
@@ -205,6 +245,7 @@ export const clearAllLocalData = () => {
   Object.values(STORAGE_KEYS).forEach(key => {
     localStorage.removeItem(key);
   });
+  console.log('All local data cleared');
 };
 
 // Get storage info

@@ -22,37 +22,72 @@ const ByProductsRevenue: React.FC = () => {
 
   // Load data on component mount
   useEffect(() => {
-    setByProducts(loadByProducts());
-    setCustomers(loadCustomers());
-    setProducts(loadProducts());
-    setSales(loadSales());
-    setPayments(loadPayments());
-    setExpenses(loadExpenses());
+    console.log('Loading data from storage...');
+    const loadedByProducts = loadByProducts();
+    const loadedCustomers = loadCustomers();
+    const loadedProducts = loadProducts();
+    const loadedSales = loadSales();
+    const loadedPayments = loadPayments();
+    const loadedExpenses = loadExpenses();
+    
+    console.log('Loaded data:', {
+      byProducts: loadedByProducts.length,
+      customers: loadedCustomers.length,
+      products: loadedProducts.length,
+      sales: loadedSales.length,
+      payments: loadedPayments.length,
+      expenses: loadedExpenses.length
+    });
+    
+    setByProducts(loadedByProducts);
+    setCustomers(loadedCustomers);
+    setProducts(loadedProducts);
+    setSales(loadedSales);
+    setPayments(loadedPayments);
+    setExpenses(loadedExpenses);
   }, []);
 
   // Auto-save data when state changes
   useEffect(() => {
-    saveByProducts(byProducts);
+    if (byProducts.length > 0) {
+      console.log('Saving by-products:', byProducts.length);
+      saveByProducts(byProducts);
+    }
   }, [byProducts]);
 
   useEffect(() => {
-    saveCustomers(customers);
+    if (customers.length > 0) {
+      console.log('Saving customers:', customers.length);
+      saveCustomers(customers);
+    }
   }, [customers]);
 
   useEffect(() => {
-    saveProducts(products);
+    if (products.length > 0) {
+      console.log('Saving products:', products.length);
+      saveProducts(products);
+    }
   }, [products]);
 
   useEffect(() => {
-    saveSales(sales);
+    if (sales.length > 0) {
+      console.log('Saving sales:', sales.length);
+      saveSales(sales);
+    }
   }, [sales]);
 
   useEffect(() => {
-    savePayments(payments);
+    if (payments.length > 0) {
+      console.log('Saving payments:', payments.length);
+      savePayments(payments);
+    }
   }, [payments]);
 
   useEffect(() => {
-    saveExpenses(expenses);
+    if (expenses.length > 0) {
+      console.log('Saving expenses:', expenses.length);
+      saveExpenses(expenses);
+    }
   }, [expenses]);
 
   // Form states
@@ -106,6 +141,8 @@ const ByProductsRevenue: React.FC = () => {
   // Handle form submissions
   const handleByProductSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('Submitting by-product form:', byProductForm);
+    
     const newByProduct: ByProduct = {
       id: Date.now().toString(),
       name: byProductForm.name,
@@ -114,13 +151,22 @@ const ByProductsRevenue: React.FC = () => {
       productionDate: byProductForm.productionDate,
       notes: byProductForm.notes
     };
-    setByProducts([...byProducts, newByProduct]);
+    
+    console.log('Creating new by-product:', newByProduct);
+    const updatedByProducts = [...byProducts, newByProduct];
+    setByProducts(updatedByProducts);
+    
+    // Force save immediately
+    saveByProducts(updatedByProducts);
+    
     setByProductForm({ name: '', type: 'bran-boiled', quantity: '', productionDate: '', notes: '' });
     setShowAddForm(false);
   };
 
   const handleCustomerSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('Submitting customer form:', customerForm);
+    
     const newCustomer: Customer = {
       id: Date.now().toString(),
       name: customerForm.name,
@@ -134,13 +180,22 @@ const ByProductsRevenue: React.FC = () => {
       createdDate: new Date().toISOString().split('T')[0],
       notes: customerForm.notes
     };
-    setCustomers([...customers, newCustomer]);
+    
+    console.log('Creating new customer:', newCustomer);
+    const updatedCustomers = [...customers, newCustomer];
+    setCustomers(updatedCustomers);
+    
+    // Force save immediately
+    saveCustomers(updatedCustomers);
+    
     setCustomerForm({ name: '', address: '', phone: '', email: '', gstNumber: '', panNumber: '', creditLimit: '', paymentTerms: '30', notes: '' });
     setShowAddForm(false);
   };
 
   const handleProductSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('Submitting product form:', productForm);
+    
     const newProduct: Product = {
       id: Date.now().toString(),
       name: productForm.name,
@@ -150,13 +205,22 @@ const ByProductsRevenue: React.FC = () => {
       gstSlab: productForm.gstSlab,
       description: productForm.description
     };
-    setProducts([...products, newProduct]);
+    
+    console.log('Creating new product:', newProduct);
+    const updatedProducts = [...products, newProduct];
+    setProducts(updatedProducts);
+    
+    // Force save immediately
+    saveProducts(updatedProducts);
+    
     setProductForm({ name: '', category: 'rice', unit: 'qtl', baseRate: '', gstSlab: '5%', description: '' });
     setShowAddForm(false);
   };
 
   const handleExpenseSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('Submitting expense form:', expenseForm);
+    
     const newExpense: Expense = {
       id: Date.now().toString(),
       category: expenseForm.category,
@@ -169,12 +233,20 @@ const ByProductsRevenue: React.FC = () => {
       paymentMethod: expenseForm.paymentMethod,
       notes: expenseForm.notes
     };
-    setExpenses([...expenses, newExpense]);
+    
+    console.log('Creating new expense:', newExpense);
+    const updatedExpenses = [...expenses, newExpense];
+    setExpenses(updatedExpenses);
+    
+    // Force save immediately
+    saveExpenses(updatedExpenses);
+    
     setExpenseForm({ category: 'electricity', description: '', amount: '', expenseDate: '', vendorName: '', billNumber: '', gstAmount: '', paymentMethod: 'cash', notes: '' });
     setShowAddForm(false);
   };
 
   const handleDataImported = () => {
+    console.log('Data imported, reloading...');
     // Reload all data after import
     setByProducts(loadByProducts());
     setCustomers(loadCustomers());
@@ -384,6 +456,108 @@ const ByProductsRevenue: React.FC = () => {
                 )}
               </div>
             )}
+
+            {activeTab === 'products' && (
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Products & Services</h3>
+                {products.length === 0 ? (
+                  <div className="text-center py-8">
+                    <Receipt className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-600">No products added yet.</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product Name</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Unit</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Base Rate</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">GST Slab</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {products.map((product) => (
+                          <tr key={product.id} className="hover:bg-gray-50">
+                            <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                              {product.name}
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-600 capitalize">
+                              {product.category.replace('-', ' ')}
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-600 uppercase">
+                              {product.unit}
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {formatCurrency(product.baseRate)}
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-600">
+                              {product.gstSlab}
+                            </td>
+                            <td className="px-4 py-4 text-sm text-gray-600 max-w-xs truncate">
+                              {product.description || '-'}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {activeTab === 'expenses' && (
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Expense Records</h3>
+                {expenses.length === 0 ? (
+                  <div className="text-center py-8">
+                    <IndianRupee className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-600">No expenses recorded yet.</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Vendor</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payment Method</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {expenses.map((expense) => (
+                          <tr key={expense.id} className="hover:bg-gray-50">
+                            <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-600">
+                              {new Date(expense.expenseDate).toLocaleDateString()}
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-600 capitalize">
+                              {expense.category.replace('-', ' ')}
+                            </td>
+                            <td className="px-4 py-4 text-sm text-gray-900 max-w-xs truncate">
+                              {expense.description}
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
+                              {formatCurrency(expense.amount)}
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-600">
+                              {expense.vendorName || '-'}
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-600 capitalize">
+                              {expense.paymentMethod.replace('-', ' ')}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
@@ -536,6 +710,179 @@ const ByProductsRevenue: React.FC = () => {
                     <div className="flex space-x-3 pt-4">
                       <button type="submit" className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors duration-200">
                         Add Customer
+                      </button>
+                      <button type="button" onClick={() => setShowAddForm(false)} className="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-400 transition-colors duration-200">
+                        Cancel
+                      </button>
+                    </div>
+                  </form>
+                )}
+
+                {activeTab === 'products' && (
+                  <form onSubmit={handleProductSubmit} className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Product Name</label>
+                      <input
+                        type="text"
+                        value={productForm.name}
+                        onChange={(e) => setProductForm({ ...productForm, name: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                      <select
+                        value={productForm.category}
+                        onChange={(e) => setProductForm({ ...productForm, category: e.target.value as Product['category'] })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      >
+                        <option value="rice">Rice</option>
+                        <option value="bran">Bran</option>
+                        <option value="broken-rice">Broken Rice</option>
+                        <option value="param">Param</option>
+                        <option value="rejection-rice">Rejection Rice</option>
+                        <option value="service">Service</option>
+                        <option value="other">Other</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Unit</label>
+                      <select
+                        value={productForm.unit}
+                        onChange={(e) => setProductForm({ ...productForm, unit: e.target.value as Product['unit'] })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      >
+                        <option value="qtl">Quintals</option>
+                        <option value="kg">Kilograms</option>
+                        <option value="bag">Bags</option>
+                        <option value="hour">Hours</option>
+                        <option value="day">Days</option>
+                        <option value="trip">Trips</option>
+                        <option value="piece">Pieces</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Base Rate (₹)</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={productForm.baseRate}
+                        onChange={(e) => setProductForm({ ...productForm, baseRate: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">GST Slab</label>
+                      <select
+                        value={productForm.gstSlab}
+                        onChange={(e) => setProductForm({ ...productForm, gstSlab: e.target.value as Product['gstSlab'] })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      >
+                        <option value="exempt">Exempt</option>
+                        <option value="0%">0%</option>
+                        <option value="5%">5%</option>
+                        <option value="12%">12%</option>
+                        <option value="18%">18%</option>
+                        <option value="28%">28%</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                      <textarea
+                        value={productForm.description}
+                        onChange={(e) => setProductForm({ ...productForm, description: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        rows={3}
+                      />
+                    </div>
+                    <div className="flex space-x-3 pt-4">
+                      <button type="submit" className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors duration-200">
+                        Add Product
+                      </button>
+                      <button type="button" onClick={() => setShowAddForm(false)} className="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-400 transition-colors duration-200">
+                        Cancel
+                      </button>
+                    </div>
+                  </form>
+                )}
+
+                {activeTab === 'expenses' && (
+                  <form onSubmit={handleExpenseSubmit} className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                      <select
+                        value={expenseForm.category}
+                        onChange={(e) => setExpenseForm({ ...expenseForm, category: e.target.value as Expense['category'] })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      >
+                        <option value="electricity">Electricity</option>
+                        <option value="freight">Freight</option>
+                        <option value="salary">Salary</option>
+                        <option value="repairs">Repairs</option>
+                        <option value="spares">Spares</option>
+                        <option value="fuel">Fuel</option>
+                        <option value="other">Other</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                      <input
+                        type="text"
+                        value={expenseForm.description}
+                        onChange={(e) => setExpenseForm({ ...expenseForm, description: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Amount (₹)</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={expenseForm.amount}
+                        onChange={(e) => setExpenseForm({ ...expenseForm, amount: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Expense Date</label>
+                      <input
+                        type="date"
+                        value={expenseForm.expenseDate}
+                        onChange={(e) => setExpenseForm({ ...expenseForm, expenseDate: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Vendor Name</label>
+                      <input
+                        type="text"
+                        value={expenseForm.vendorName}
+                        onChange={(e) => setExpenseForm({ ...expenseForm, vendorName: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Payment Method</label>
+                      <select
+                        value={expenseForm.paymentMethod}
+                        onChange={(e) => setExpenseForm({ ...expenseForm, paymentMethod: e.target.value as Expense['paymentMethod'] })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      >
+                        <option value="cash">Cash</option>
+                        <option value="cheque">Cheque</option>
+                        <option value="bank-transfer">Bank Transfer</option>
+                        <option value="upi">UPI</option>
+                        <option value="other">Other</option>
+                      </select>
+                    </div>
+                    <div className="flex space-x-3 pt-4">
+                      <button type="submit" className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors duration-200">
+                        Add Expense
                       </button>
                       <button type="button" onClick={() => setShowAddForm(false)} className="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-400 transition-colors duration-200">
                         Cancel
