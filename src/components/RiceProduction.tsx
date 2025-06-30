@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus, Factory, TrendingUp, Package, AlertCircle } from 'lucide-react';
 import { RiceProduction as RiceProductionType } from '../types';
 import { paddyData } from '../data/paddyData';
 import { formatNumber } from '../utils/calculations';
+import { saveRiceProductions, loadRiceProductions } from '../utils/dataStorage';
 import StatsCard from './StatsCard';
 
 const RiceProduction: React.FC = () => {
@@ -15,6 +16,22 @@ const RiceProduction: React.FC = () => {
     notes: ''
   });
 
+  // Load data on component mount
+  useEffect(() => {
+    console.log('Loading rice productions...');
+    const loadedProductions = loadRiceProductions();
+    console.log('Loaded rice productions:', loadedProductions);
+    setProductions(loadedProductions);
+  }, []);
+
+  // Auto-save data when state changes
+  useEffect(() => {
+    if (productions.length > 0) {
+      console.log('Saving rice productions:', productions);
+      saveRiceProductions(productions);
+    }
+  }, [productions]);
+
   // Calculate available paddy from paddy data
   const totalPaddyReceived = paddyData.reduce((sum, record) => sum + record.totalQuintals, 0);
   const usedPaddy = productions.reduce((sum, prod) => sum + prod.paddyUsed, 0);
@@ -25,6 +42,8 @@ const RiceProduction: React.FC = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    console.log('Submitting rice production form:', formData);
     
     const ackQuantity = parseInt(formData.ackQuantity);
     const ricePerAck = 290; // 290 quintals per ACK
@@ -52,7 +71,13 @@ const RiceProduction: React.FC = () => {
       notes: formData.notes
     };
 
-    setProductions([...productions, newProduction]);
+    console.log('Creating new rice production:', newProduction);
+    const updatedProductions = [...productions, newProduction];
+    setProductions(updatedProductions);
+    
+    // Force save immediately
+    saveRiceProductions(updatedProductions);
+
     setFormData({ ackQuantity: '1', riceType: 'boiled', productionDate: '', notes: '' });
     setShowAddForm(false);
   };
