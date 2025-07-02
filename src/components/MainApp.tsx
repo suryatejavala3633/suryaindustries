@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Package, Factory, Truck, Sticker, TrendingUp, Users, Zap } from 'lucide-react';
+import { Package, Factory, Truck, Sticker, TrendingUp, Users, Zap, Home } from 'lucide-react';
+import LandingPage from './LandingPage';
 import Dashboard from './Dashboard';
 import RiceProduction from './RiceProduction';
 import FCIConsignments from './FCIConsignments';
@@ -8,12 +9,13 @@ import ByProductsRevenue from './ByProductsRevenue';
 import SalariesWages from './SalariesWages';
 import ElectricityBillCalculator from './ElectricityBillCalculator';
 
-type TabType = 'paddy' | 'production' | 'fci' | 'stock' | 'revenue' | 'salaries' | 'electricity';
+type TabType = 'home' | 'paddy' | 'production' | 'fci' | 'stock' | 'revenue' | 'salaries' | 'electricity';
 
 const MainApp: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<TabType>('paddy');
+  const [activeTab, setActiveTab] = useState<TabType>('home');
 
   const tabs = [
+    { id: 'home', label: 'Home', icon: Home, component: null },
     { id: 'paddy', label: 'Paddy Dashboard', icon: Package, component: Dashboard },
     { id: 'production', label: 'Rice Production', icon: Factory, component: RiceProduction },
     { id: 'fci', label: 'FCI Consignments', icon: Truck, component: FCIConsignments },
@@ -23,7 +25,15 @@ const MainApp: React.FC = () => {
     { id: 'electricity', label: 'Electricity Bills', icon: Zap, component: ElectricityBillCalculator },
   ];
 
-  const ActiveComponent = tabs.find(tab => tab.id === activeTab)?.component || Dashboard;
+  const handleNavigate = (tabId: string) => {
+    setActiveTab(tabId as TabType);
+  };
+
+  const ActiveComponent = tabs.find(tab => tab.id === activeTab)?.component;
+
+  if (activeTab === 'home') {
+    return <LandingPage onNavigate={handleNavigate} />;
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -54,7 +64,7 @@ const MainApp: React.FC = () => {
 
       {/* Tab Content */}
       <div className="flex-1">
-        <ActiveComponent />
+        {ActiveComponent && <ActiveComponent />}
       </div>
     </div>
   );

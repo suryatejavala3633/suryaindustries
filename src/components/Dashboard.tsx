@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Search, Filter, Download, Truck, Package, MapPin, Calendar, Clock, Archive, FileCheck } from 'lucide-react';
+import { Search, Filter, Download, Truck, Package, MapPin, Calendar, Clock, Archive, FileCheck, Eye, EyeOff } from 'lucide-react';
 import { paddyData } from '../data/paddyData';
 import { calculateSummaryStats, formatNumber, formatDecimal, formatDate } from '../utils/calculations';
 import { PaddyRecord } from '../types';
@@ -17,6 +17,8 @@ const Dashboard: React.FC = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [activeTab, setActiveTab] = useState<'dashboard' | 'reconciliation'>('dashboard');
   const [activeUnloadingPoint, setActiveUnloadingPoint] = useState<string>('all');
+  const [showPaddyRecords, setShowPaddyRecords] = useState(false);
+  const [showUnloadingPointDetails, setShowUnloadingPointDetails] = useState(false);
 
   // Get unique values for filters
   const uniqueCenters = useMemo(() => {
@@ -208,67 +210,89 @@ const Dashboard: React.FC = () => {
           />
         </div>
 
-        {/* Enhanced Unloading Point Summary with Colorful Tabs */}
+        {/* Enhanced Unloading Point Summary with Toggle */}
         <div className="bg-white rounded-xl shadow-lg border border-gray-200 mb-8">
           <div className="p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-6">Stock by Unloading Point</h3>
-            
-            {/* Tab Navigation */}
-            <div className="flex flex-wrap gap-2 mb-6">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-semibold text-gray-900">Stock by Unloading Point</h3>
               <button
-                onClick={() => setActiveUnloadingPoint('all')}
-                className={`px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 ${
-                  activeUnloadingPoint === 'all'
-                    ? 'bg-gradient-to-r from-gray-500 to-gray-600 text-white shadow-md'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
+                onClick={() => setShowUnloadingPointDetails(!showUnloadingPointDetails)}
+                className="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-600 hover:text-gray-800 transition-colors duration-200"
               >
-                All Points ({formatNumber(summaryStats.totalBags)} bags)
+                {showUnloadingPointDetails ? (
+                  <>
+                    <EyeOff className="h-4 w-4 mr-2" />
+                    Hide Details
+                  </>
+                ) : (
+                  <>
+                    <Eye className="h-4 w-4 mr-2" />
+                    Show Details
+                  </>
+                )}
               </button>
-              {Object.entries(unloadingPointSummary).map(([point, data]) => (
-                <button
-                  key={point}
-                  onClick={() => setActiveUnloadingPoint(point)}
-                  className={`px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 ${
-                    activeUnloadingPoint === point
-                      ? `bg-gradient-to-r ${getUnloadingPointColor(point)} text-white shadow-md`
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                >
-                  {point} ({formatNumber(data.totalBags)})
-                </button>
-              ))}
             </div>
-
-            {/* Summary Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {Object.entries(unloadingPointSummary).map(([point, data]) => (
-                <div 
-                  key={point} 
-                  className={`rounded-lg p-4 cursor-pointer transition-all duration-200 hover:shadow-lg ${
-                    activeUnloadingPoint === point 
-                      ? `bg-gradient-to-r ${getUnloadingPointColor(point)} text-white shadow-md` 
-                      : 'bg-gray-50 hover:bg-gray-100'
-                  }`}
-                  onClick={() => setActiveUnloadingPoint(point)}
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <h4 className={`font-medium ${activeUnloadingPoint === point ? 'text-white' : 'text-gray-900'}`}>
-                      {point}
-                    </h4>
-                    <MapPin className={`h-4 w-4 ${activeUnloadingPoint === point ? 'text-white' : 'text-gray-500'}`} />
-                  </div>
-                  <div className="space-y-1">
-                    <div className={`text-sm ${activeUnloadingPoint === point ? 'text-white' : 'text-gray-600'}`}>
-                      Quintals: <span className="font-semibold">{formatDecimal(data.totalQuintals)}</span>
-                    </div>
-                    <div className={`text-sm ${activeUnloadingPoint === point ? 'text-white' : 'text-gray-600'}`}>
-                      Bags: <span className="font-semibold">{formatNumber(data.totalBags)}</span>
-                    </div>
-                  </div>
+            
+            {showUnloadingPointDetails && (
+              <>
+                {/* Tab Navigation */}
+                <div className="flex flex-wrap gap-2 mb-6">
+                  <button
+                    onClick={() => setActiveUnloadingPoint('all')}
+                    className={`px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 ${
+                      activeUnloadingPoint === 'all'
+                        ? 'bg-gradient-to-r from-gray-500 to-gray-600 text-white shadow-md'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    All Points ({formatNumber(summaryStats.totalBags)} bags)
+                  </button>
+                  {Object.entries(unloadingPointSummary).map(([point, data]) => (
+                    <button
+                      key={point}
+                      onClick={() => setActiveUnloadingPoint(point)}
+                      className={`px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 ${
+                        activeUnloadingPoint === point
+                          ? `bg-gradient-to-r ${getUnloadingPointColor(point)} text-white shadow-md`
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      {point} ({formatNumber(data.totalBags)})
+                    </button>
+                  ))}
                 </div>
-              ))}
-            </div>
+
+                {/* Summary Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {Object.entries(unloadingPointSummary).map(([point, data]) => (
+                    <div 
+                      key={point} 
+                      className={`rounded-lg p-4 cursor-pointer transition-all duration-200 hover:shadow-lg ${
+                        activeUnloadingPoint === point 
+                          ? `bg-gradient-to-r ${getUnloadingPointColor(point)} text-white shadow-md` 
+                          : 'bg-gray-50 hover:bg-gray-100'
+                      }`}
+                      onClick={() => setActiveUnloadingPoint(point)}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className={`font-medium ${activeUnloadingPoint === point ? 'text-white' : 'text-gray-900'}`}>
+                          {point}
+                        </h4>
+                        <MapPin className={`h-4 w-4 ${activeUnloadingPoint === point ? 'text-white' : 'text-gray-500'}`} />
+                      </div>
+                      <div className="space-y-1">
+                        <div className={`text-sm ${activeUnloadingPoint === point ? 'text-white' : 'text-gray-600'}`}>
+                          Quintals: <span className="font-semibold">{formatDecimal(data.totalQuintals)}</span>
+                        </div>
+                        <div className={`text-sm ${activeUnloadingPoint === point ? 'text-white' : 'text-gray-600'}`}>
+                          Bags: <span className="font-semibold">{formatNumber(data.totalBags)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
         </div>
 
@@ -331,8 +355,39 @@ const Dashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* Data Table */}
-        <DataTable data={displayData} />
+        {/* Paddy Records Toggle */}
+        <div className="bg-white rounded-xl shadow-lg border border-gray-200 mb-8">
+          <div className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">Paddy Records</h3>
+                <p className="text-sm text-gray-600 mt-1">
+                  {formatNumber(displayData.length)} records found
+                  {activeUnloadingPoint !== 'all' && ` for ${activeUnloadingPoint}`}
+                </p>
+              </div>
+              <button
+                onClick={() => setShowPaddyRecords(!showPaddyRecords)}
+                className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-all duration-200 shadow-md hover:shadow-lg"
+              >
+                {showPaddyRecords ? (
+                  <>
+                    <EyeOff className="h-4 w-4 mr-2" />
+                    Hide Records
+                  </>
+                ) : (
+                  <>
+                    <Eye className="h-4 w-4 mr-2" />
+                    View Records
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Data Table - Only show when toggled */}
+        {showPaddyRecords && <DataTable data={displayData} />}
       </div>
     </div>
   );

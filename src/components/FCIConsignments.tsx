@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Plus, Truck, Package, CheckCircle, Clock, AlertCircle, Edit, Save, X, Calculator, CreditCard, FileText } from 'lucide-react';
+import { Plus, Truck, Package, CheckCircle, Clock, AlertCircle, Edit, Save, X, Calculator, CreditCard, FileText, IndianRupee } from 'lucide-react';
 import { FCIConsignment, FRKStock, GunnyStock, RexinSticker, RiceProduction, LorryFreight } from '../types';
 import { formatNumber, formatDecimal, formatCurrency } from '../utils/calculations';
 import { 
@@ -13,7 +13,7 @@ import {
 import StatsCard from './StatsCard';
 
 const FCIConsignments: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'consignments' | 'freight' | 'payments'>('consignments');
+  const [activeTab, setActiveTab] = useState<'consignments' | 'freight' | 'payments' | 'expenses'>('consignments');
   const [consignments, setConsignments] = useState<FCIConsignment[]>([]);
   const [frkStocks, setFrkStocks] = useState<FRKStock[]>([]);
   const [gunnyStocks, setGunnyStocks] = useState<GunnyStock[]>([]);
@@ -32,6 +32,8 @@ const FCIConsignments: React.FC = () => {
     transporterName: '',
     freightRate: '',
     eWayBill: '',
+    fciUnloadingHamali: '5600',
+    fciPassing: '7000',
     notes: ''
   });
 
@@ -105,6 +107,19 @@ const FCIConsignments: React.FC = () => {
     return Object.values(selectedFrkBatches).reduce((total, qty) => total + qty, 0);
   }, [selectedFrkBatches]);
 
+  // Calculate FCI expenses
+  const fciExpenses = useMemo(() => {
+    const totalUnloadingHamali = consignments.length * 5600;
+    const totalFciPassing = consignments.length * 7000;
+    const totalExpenses = totalUnloadingHamali + totalFciPassing;
+    
+    return {
+      totalUnloadingHamali,
+      totalFciPassing,
+      totalExpenses
+    };
+  }, [consignments]);
+
   const handleFrkBatchSelection = (batchId: string, quantity: number) => {
     setSelectedFrkBatches(prev => ({
       ...prev,
@@ -150,6 +165,8 @@ const FCIConsignments: React.FC = () => {
       lorryNumber: consignmentForm.lorryNumber,
       transporterName: consignmentForm.transporterName,
       eWayBill: consignmentForm.eWayBill,
+      fciUnloadingHamali: consignmentForm.fciUnloadingHamali,
+      fciPassingFee: consignmentForm.fciPassing,
       notes: consignmentForm.notes
     };
 
@@ -228,6 +245,8 @@ const FCIConsignments: React.FC = () => {
       transporterName: '',
       freightRate: '',
       eWayBill: '',
+      fciUnloadingHamali: '5600',
+      fciPassing: '7000',
       notes: ''
     });
     setSelectedFrkBatches({});
@@ -237,7 +256,8 @@ const FCIConsignments: React.FC = () => {
   const tabs = [
     { id: 'consignments', label: 'FCI Consignments', icon: Truck, color: 'from-blue-500 to-blue-600' },
     { id: 'freight', label: 'Lorry Freight', icon: Calculator, color: 'from-green-500 to-green-600' },
-    { id: 'payments', label: 'Freight Payments', icon: CreditCard, color: 'from-purple-500 to-purple-600' }
+    { id: 'payments', label: 'Freight Payments', icon: CreditCard, color: 'from-purple-500 to-purple-600' },
+    { id: 'expenses', label: 'FCI Expenses', icon: IndianRupee, color: 'from-orange-500 to-orange-600' }
   ];
 
   return (
@@ -344,6 +364,7 @@ const FCIConsignments: React.FC = () => {
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quantities</th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Transport</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">FCI Expenses</th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                         </tr>
                       </thead>
@@ -368,6 +389,15 @@ const FCIConsignments: React.FC = () => {
                               <div className="space-y-1">
                                 <div>Lorry: <span className="font-medium">{consignment.lorryNumber || '-'}</span></div>
                                 <div>Transporter: <span className="font-medium">{consignment.transporterName || '-'}</span></div>
+                              </div>
+                            </td>
+                            <td className="px-4 py-4 text-sm text-gray-900">
+                              <div className="space-y-1">
+                                <div>Hamali: <span className="font-semibold">{formatCurrency(parseFloat(consignment.fciUnloadingHamali || '5600'))}</span></div>
+                                <div>Passing: <span className="font-semibold">{formatCurrency(parseFloat(consignment.fciPassingFee || '7000'))}</span></div>
+                                <div className="text-xs text-blue-600 font-medium">
+                                  Total: {formatCurrency(parseFloat(consignment.fciUnloadingHamali || '5600') + parseFloat(consignment.fciPassingFee || '7000'))}
+                                </div>
                               </div>
                             </td>
                             <td className="px-4 py-4 whitespace-nowrap">
@@ -458,6 +488,118 @@ const FCIConsignments: React.FC = () => {
                 </div>
               </div>
             )}
+
+            {activeTab === 'expenses' && (
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">FCI Expense Summary</h3>
+                
+                {/* Expense Summary Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                  <StatsCard
+                    title="FCI Unloading Hamali"
+                    value={formatCurrency(fciExpenses.totalUnloadingHamali)}
+                    subtitle={`${consignments.length} ACKs × ₹5,600`}
+                    icon={<Truck className="h-6 w-6" />}
+                    color="from-blue-500 to-blue-600"
+                  />
+                  <StatsCard
+                    title="FCI Passing Fee"
+                    value={formatCurrency(fciExpenses.totalFciPassing)}
+                    subtitle={`${consignments.length} ACKs × ₹7,000`}
+                    icon={<FileText className="h-6 w-6" />}
+                    color="from-green-500 to-green-600"
+                  />
+                  <StatsCard
+                    title="Total FCI Expenses"
+                    value={formatCurrency(fciExpenses.totalExpenses)}
+                    subtitle="Hamali + Passing Fee"
+                    icon={<IndianRupee className="h-6 w-6" />}
+                    color="from-red-500 to-red-600"
+                  />
+                </div>
+
+                {/* Detailed Expense Table */}
+                {consignments.length === 0 ? (
+                  <div className="text-center py-8">
+                    <IndianRupee className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-600">No FCI expenses yet. Create consignments to track expenses.</p>
+                  </div>
+                ) : (
+                  <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                    <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
+                      <h4 className="text-lg font-medium text-gray-900">Expense Breakdown by ACK</h4>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ACK Number</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Unloading Hamali</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Passing Fee</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Expense</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payment Status</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200">
+                          {consignments.map((consignment) => {
+                            const hamaliAmount = parseFloat(consignment.fciUnloadingHamali || '5600');
+                            const passingAmount = parseFloat(consignment.fciPassingFee || '7000');
+                            const totalExpense = hamaliAmount + passingAmount;
+                            
+                            return (
+                              <tr key={consignment.id} className="hover:bg-gray-50">
+                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-600">
+                                  {consignment.ackNumber}
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                                  {new Date(consignment.consignmentDate).toLocaleDateString()}
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                  <div className="flex flex-col">
+                                    <span className="font-medium">{formatCurrency(hamaliAmount)}</span>
+                                    <span className="text-xs text-green-600">Paid at FCI</span>
+                                  </div>
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                  <div className="flex flex-col">
+                                    <span className="font-medium">{formatCurrency(passingAmount)}</span>
+                                    <span className="text-xs text-orange-600">Paid later</span>
+                                  </div>
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-bold">
+                                  {formatCurrency(totalExpense)}
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                  <div className="flex flex-col space-y-1">
+                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                      Hamali: Paid
+                                    </span>
+                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                                      Passing: Pending
+                                    </span>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                {/* Expense Notes */}
+                <div className="mt-6 bg-blue-50 rounded-lg p-4 border border-blue-200">
+                  <h4 className="text-sm font-medium text-blue-900 mb-2">FCI Expense Information:</h4>
+                  <ul className="text-sm text-blue-800 space-y-1">
+                    <li>• <strong>FCI Unloading Hamali:</strong> ₹5,600 per ACK - Paid directly to hamali workers at FCI godown</li>
+                    <li>• <strong>FCI Passing Fee:</strong> ₹7,000 per ACK - Paid to FCI staff by miller representative at a later date</li>
+                    <li>• <strong>Additional Costs:</strong> Overhead expenses may occur during FCI operations and should be recorded separately</li>
+                  </ul>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -523,7 +665,7 @@ const FCIConsignments: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-3 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         Freight Rate (₹ per MT)
@@ -539,6 +681,31 @@ const FCIConsignments: React.FC = () => {
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
+                        FCI Unloading Hamali (₹)
+                      </label>
+                      <input
+                        type="number"
+                        value={consignmentForm.fciUnloadingHamali}
+                        onChange={(e) => setConsignmentForm({ ...consignmentForm, fciUnloadingHamali: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        FCI Passing Fee (₹)
+                      </label>
+                      <input
+                        type="number"
+                        value={consignmentForm.fciPassing}
+                        onChange={(e) => setConsignmentForm({ ...consignmentForm, fciPassing: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
                         Gunny Type
                       </label>
                       <select
@@ -549,6 +716,18 @@ const FCIConsignments: React.FC = () => {
                         <option value="2024-25-new">2024-25 New Gunnies</option>
                         <option value="2023-24-leftover">2023-24 Leftover Gunnies</option>
                       </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        E-Way Bill Number
+                      </label>
+                      <input
+                        type="text"
+                        value={consignmentForm.eWayBill}
+                        onChange={(e) => setConsignmentForm({ ...consignmentForm, eWayBill: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="Enter E-Way Bill number"
+                      />
                     </div>
                   </div>
 
@@ -611,6 +790,14 @@ const FCIConsignments: React.FC = () => {
                       <div className="flex justify-between">
                         <span>Gunnies Required:</span>
                         <span className="font-semibold">580 bags</span>
+                      </div>
+                      <div className="flex justify-between border-t pt-1 mt-1">
+                        <span>FCI Unloading Hamali:</span>
+                        <span className="font-semibold">{formatCurrency(parseFloat(consignmentForm.fciUnloadingHamali))}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>FCI Passing Fee:</span>
+                        <span className="font-semibold">{formatCurrency(parseFloat(consignmentForm.fciPassing))}</span>
                       </div>
                       {consignmentForm.freightRate && (
                         <div className="flex justify-between border-t pt-1 mt-1">

@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Plus, Package, Users, Receipt, CreditCard, TrendingUp, IndianRupee, Calendar, Clock, Settings } from 'lucide-react';
+import { Plus, Package, Users, Receipt, CreditCard, TrendingUp, IndianRupee, Calendar, Clock, Settings, HardDrive } from 'lucide-react';
 import { ByProduct, Customer, Product, SaleInvoice, Payment, Expense } from '../types';
 import { formatDecimal, formatCurrency, calculateDaysDue, getGSTRate, formatQuantity, formatWeight } from '../utils/calculations';
 import { 
@@ -263,7 +263,7 @@ const ByProductsRevenue: React.FC = () => {
     { id: 'sales', label: 'Sales', icon: TrendingUp },
     { id: 'payments', label: 'Payments', icon: CreditCard },
     { id: 'expenses', label: 'Expenses', icon: IndianRupee },
-    { id: 'backup', label: 'Data Backup', icon: Settings }
+    { id: 'backup', label: 'Data Backup', icon: HardDrive }
   ];
 
   return (

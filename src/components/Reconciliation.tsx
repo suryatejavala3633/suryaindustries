@@ -1,9 +1,10 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { FileCheck, CheckCircle, Clock, AlertCircle, Plus, Camera, Truck, Upload, Download, Edit, Save, X, ArrowLeft } from 'lucide-react';
 import { ReconciliationRecord, OldGunnyDispatch } from '../types';
 import { paddyData } from '../data/paddyData';
 import { oldGunnyDispatchData } from '../data/oldGunnyDispatchData';
 import { formatNumber, formatDecimal } from '../utils/calculations';
+import { saveReconciliations, loadReconciliations, saveGunnyDispatches, loadGunnyDispatches } from '../utils/dataStorage';
 import StatsCard from './StatsCard';
 
 interface ReconciliationProps {
@@ -12,13 +13,7 @@ interface ReconciliationProps {
 
 const Reconciliation: React.FC<ReconciliationProps> = ({ onBack }) => {
   const [reconciliations, setReconciliations] = useState<ReconciliationRecord[]>([]);
-  const [oldGunnyDispatches, setOldGunnyDispatches] = useState<OldGunnyDispatch[]>(
-    oldGunnyDispatchData.map(dispatch => ({
-      ...dispatch,
-      dispatchDate: dispatch.date,
-      status: dispatch.acknowledgmentReceived ? 'acknowledged' : 'dispatched'
-    }))
-  );
+  const [oldGunnyDispatches, setOldGunnyDispatches] = useState<OldGunnyDispatch[]>([]);
   const [activeTab, setActiveTab] = useState<'reconciliation' | 'gunny-dispatch'>('reconciliation');
   const [showAddForm, setShowAddForm] = useState(false);
   const [showReconcileForm, setShowReconcileForm] = useState<string | null>(null);
@@ -40,6 +35,35 @@ const Reconciliation: React.FC<ReconciliationProps> = ({ onBack }) => {
     dispatchDate: '',
     comments: ''
   });
+
+  // Load data on component mount
+  useEffect(() => {
+    const loadedReconciliations = loadReconciliations();
+    const loadedDispatches = loadGunnyDispatches();
+    
+    setReconciliations(loadedReconciliations);
+    
+    if (loadedDispatches.length > 0) {
+      setOldGunnyDispatches(loadedDispatches);
+    } else {
+      // Initialize with default data if no saved data exists
+      const initialDispatches = oldGunnyDispatchData.map(dispatch => ({
+        ...dispatch,
+        dispatchDate: dispatch.date,
+        status: dispatch.acknowledgmentReceived ? 'acknowledged' : 'dispatched'
+      }));
+      setOldGunnyDispatches(initialDispatches);
+    }
+  }, []);
+
+  // Auto-save data when state changes
+  useEffect(() => {
+    saveReconciliations(reconciliations);
+  }, [reconciliations]);
+
+  useEffect(() => {
+    saveGunnyDispatches(oldGunnyDispatches);
+  }, [oldGunnyDispatches]);
 
   // Generate reconciliation records from paddy data
   const centerSummary = useMemo(() => {
@@ -102,26 +126,27 @@ const Reconciliation: React.FC<ReconciliationProps> = ({ onBack }) => {
     const centerRecord = centerRecords.find(r => r.id === id);
     if (!centerRecord) return;
 
-    const updated = reconciliations.find(r => r.id === id);
-    if (updated) {
-      updated.reconciliationStatus = status;
-      updated.reconciliationDate = status === 'completed' ? new Date().toISOString().split('T')[0] : undefined;
-      updated.notes = notes;
-      setReconciliations([...reconciliations.filter(r => r.id !== id), updated]);
+    const existingIndex = reconciliations.findIndex(r => r.id === id);
+    const updatedRecord: ReconciliationRecord = {
+      id,
+      centerName: centerRecord.centerName,
+      district: centerRecord.district,
+      totalPaddyReceived: centerRecord.totalPaddyReceived,
+      totalQuintals: centerRecord.totalQuintals,
+      reconciledQuintals: centerRecord.reconciledQuintals,
+      balanceQuintals: centerRecord.balanceQuintals,
+      reconciliationStatus: status,
+      reconciliationDate: status === 'completed' ? new Date().toISOString().split('T')[0] : centerRecord.reconciliationDate,
+      reconciliationDocument: centerRecord.reconciliationDocument,
+      notes
+    };
+
+    if (existingIndex >= 0) {
+      const newReconciliations = [...reconciliations];
+      newReconciliations[existingIndex] = updatedRecord;
+      setReconciliations(newReconciliations);
     } else {
-      const newRecord: ReconciliationRecord = {
-        id,
-        centerName: centerRecord.centerName,
-        district: centerRecord.district,
-        totalPaddyReceived: centerRecord.totalPaddyReceived,
-        totalQuintals: centerRecord.totalQuintals,
-        reconciledQuintals: centerRecord.reconciledQuintals,
-        balanceQuintals: centerRecord.balanceQuintals,
-        reconciliationStatus: status,
-        reconciliationDate: status === 'completed' ? new Date().toISOString().split('T')[0] : undefined,
-        notes
-      };
-      setReconciliations([...reconciliations, newRecord]);
+      setReconciliations([...reconciliations, updatedRecord]);
     }
   };
 
@@ -135,25 +160,30 @@ const Reconciliation: React.FC<ReconciliationProps> = ({ onBack }) => {
     const maxReconcile = centerRecord.balanceQuintals;
     const actualAmount = Math.min(amount, maxReconcile);
 
-    const existing = reconciliations.find(r => r.id === id);
-    if (existing) {
-      existing.reconciledQuintals += actualAmount;
-      existing.balanceQuintals = centerRecord.totalQuintals - existing.reconciledQuintals;
-      existing.reconciliationStatus = existing.balanceQuintals <= 0 ? 'completed' : 'in-progress';
-      existing.reconciliationDate = existing.reconciliationStatus === 'completed' ? new Date().toISOString().split('T')[0] : undefined;
-      setReconciliations([...reconciliations.filter(r => r.id !== id), existing]);
+    const existingIndex = reconciliations.findIndex(r => r.id === id);
+    const newReconciledQuintals = centerRecord.reconciledQuintals + actualAmount;
+    const newBalanceQuintals = centerRecord.totalQuintals - newReconciledQuintals;
+
+    const updatedRecord: ReconciliationRecord = {
+      id,
+      centerName: centerRecord.centerName,
+      district: centerRecord.district,
+      totalPaddyReceived: centerRecord.totalPaddyReceived,
+      totalQuintals: centerRecord.totalQuintals,
+      reconciledQuintals: newReconciledQuintals,
+      balanceQuintals: newBalanceQuintals,
+      reconciliationStatus: newBalanceQuintals <= 0 ? 'completed' : 'in-progress',
+      reconciliationDate: newBalanceQuintals <= 0 ? new Date().toISOString().split('T')[0] : centerRecord.reconciliationDate,
+      reconciliationDocument: centerRecord.reconciliationDocument,
+      notes: centerRecord.notes
+    };
+
+    if (existingIndex >= 0) {
+      const newReconciliations = [...reconciliations];
+      newReconciliations[existingIndex] = updatedRecord;
+      setReconciliations(newReconciliations);
     } else {
-      const newRecord: ReconciliationRecord = {
-        id,
-        centerName: centerRecord.centerName,
-        district: centerRecord.district,
-        totalPaddyReceived: centerRecord.totalPaddyReceived,
-        totalQuintals: centerRecord.totalQuintals,
-        reconciledQuintals: actualAmount,
-        balanceQuintals: centerRecord.totalQuintals - actualAmount,
-        reconciliationStatus: (centerRecord.totalQuintals - actualAmount) <= 0 ? 'completed' : 'in-progress'
-      };
-      setReconciliations([...reconciliations, newRecord]);
+      setReconciliations([...reconciliations, updatedRecord]);
     }
 
     setReconcileAmount('');
@@ -236,27 +266,30 @@ const Reconciliation: React.FC<ReconciliationProps> = ({ onBack }) => {
     if (file) {
       const reader = new FileReader();
       reader.onload = (e) => {
-        const existing = reconciliations.find(r => r.id === id);
         const centerRecord = centerRecords.find(r => r.id === id);
         if (!centerRecord) return;
 
-        if (existing) {
-          existing.reconciliationDocument = e.target?.result as string;
-          setReconciliations([...reconciliations.filter(r => r.id !== id), existing]);
+        const existingIndex = reconciliations.findIndex(r => r.id === id);
+        const updatedRecord: ReconciliationRecord = {
+          id,
+          centerName: centerRecord.centerName,
+          district: centerRecord.district,
+          totalPaddyReceived: centerRecord.totalPaddyReceived,
+          totalQuintals: centerRecord.totalQuintals,
+          reconciledQuintals: centerRecord.reconciledQuintals,
+          balanceQuintals: centerRecord.balanceQuintals,
+          reconciliationStatus: centerRecord.reconciliationStatus,
+          reconciliationDate: centerRecord.reconciliationDate,
+          reconciliationDocument: e.target?.result as string,
+          notes: centerRecord.notes
+        };
+
+        if (existingIndex >= 0) {
+          const newReconciliations = [...reconciliations];
+          newReconciliations[existingIndex] = updatedRecord;
+          setReconciliations(newReconciliations);
         } else {
-          const newRecord: ReconciliationRecord = {
-            id,
-            centerName: centerRecord.centerName,
-            district: centerRecord.district,
-            totalPaddyReceived: centerRecord.totalPaddyReceived,
-            totalQuintals: centerRecord.totalQuintals,
-            reconciledQuintals: centerRecord.reconciledQuintals,
-            balanceQuintals: centerRecord.balanceQuintals,
-            reconciliationStatus: centerRecord.reconciliationStatus,
-            reconciliationDate: centerRecord.reconciliationDate,
-            reconciliationDocument: e.target?.result as string
-          };
-          setReconciliations([...reconciliations, newRecord]);
+          setReconciliations([...reconciliations, updatedRecord]);
         }
       };
       reader.readAsDataURL(file);
