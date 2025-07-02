@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Plus, Factory, TrendingUp, Package, AlertCircle } from 'lucide-react';
 import { RiceProduction as RiceProductionType } from '../types';
 import { paddyData } from '../data/paddyData';
-import { formatNumber, formatDecimal } from '../utils/calculations';
+import { formatNumber, formatDecimal, formatWeight } from '../utils/calculations';
 import { saveRiceProductions, loadRiceProductions } from '../utils/dataStorage';
 import StatsCard from './StatsCard';
 
@@ -109,21 +109,21 @@ const RiceProduction: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <StatsCard
             title="Available Paddy"
-            value={`${formatDecimal(remainingPaddy)} Qtl`}
-            subtitle={`Used: ${formatDecimal(usedPaddy)} Qtl`}
+            value={formatWeight(remainingPaddy)}
+            subtitle={`Used: ${formatWeight(usedPaddy)}`}
             icon={<Package className="h-6 w-6" />}
             color="from-blue-500 to-blue-600"
           />
           <StatsCard
             title="Rice Produced"
-            value={`${formatDecimal(totalRiceProduced)} Qtl`}
+            value={formatWeight(totalRiceProduced)}
             subtitle="287.1 Qtl per ACK"
             icon={<Factory className="h-6 w-6" />}
             color="from-emerald-500 to-emerald-600"
           />
           <StatsCard
             title="Millers Due"
-            value={`${formatDecimal(totalMillersDue)} Qtl`}
+            value={formatWeight(totalMillersDue)}
             subtitle="1% of paddy weight"
             icon={<TrendingUp className="h-6 w-6" />}
             color="from-purple-500 to-purple-600"
@@ -186,21 +186,21 @@ const RiceProduction: React.FC = () => {
                       </div>
                       <div className="flex justify-between">
                         <span>Rice Output:</span>
-                        <span className="font-semibold">{formatDecimal(currentRiceQuantity)} Qtl</span>
+                        <span className="font-semibold">{formatDecimal(currentRiceQuantity, 2)} Qtl</span>
                       </div>
                       <div className="flex justify-between">
                         <span>Paddy Required:</span>
-                        <span className="font-semibold">{formatDecimal(currentPaddyRequired)} Qtl</span>
+                        <span className="font-semibold">{formatDecimal(currentPaddyRequired, 2)} Qtl</span>
                       </div>
                       <div className="flex justify-between">
                         <span>Millers Due:</span>
-                        <span className="font-semibold">{formatDecimal(currentMillersDue)} Qtl</span>
+                        <span className="font-semibold">{formatDecimal(currentMillersDue, 2)} Qtl</span>
                       </div>
                       <div className="border-t pt-2 mt-2">
                         <div className="flex justify-between">
                           <span>Available Paddy:</span>
                           <span className={`font-semibold ${currentPaddyRequired > remainingPaddy ? 'text-red-600' : 'text-green-600'}`}>
-                            {formatDecimal(remainingPaddy)} Qtl
+                            {formatDecimal(remainingPaddy, 2)} Qtl
                           </span>
                         </div>
                       </div>
@@ -292,13 +292,13 @@ const RiceProduction: React.FC = () => {
                           </span>
                         </td>
                         <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {formatDecimal(production.paddyUsed)} Qtl
+                          {formatDecimal(production.paddyUsed, 2)} Qtl
                         </td>
                         <td className="px-4 py-4 whitespace-nowrap text-sm text-green-600 font-medium">
-                          {formatDecimal(production.riceProduced)} Qtl
+                          {formatDecimal(production.riceProduced, 2)} Qtl
                         </td>
                         <td className="px-4 py-4 whitespace-nowrap text-sm text-orange-600 font-medium">
-                          {formatDecimal(production.millersDue)} Qtl
+                          {formatDecimal(production.millersDue, 2)} Qtl
                         </td>
                         <td className="px-4 py-4 text-sm text-gray-600 max-w-xs truncate">
                           {production.notes || '-'}

@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Plus, Package, Users, Receipt, CreditCard, TrendingUp, IndianRupee, Calendar, Clock, Settings } from 'lucide-react';
 import { ByProduct, Customer, Product, SaleInvoice, Payment, Expense } from '../types';
-import { formatDecimal, formatCurrency, calculateDaysDue, getGSTRate } from '../utils/calculations';
+import { formatDecimal, formatCurrency, calculateDaysDue, getGSTRate, formatQuantity, formatWeight } from '../utils/calculations';
 import { 
   saveByProducts, loadByProducts, saveCustomers, loadCustomers, 
   saveProducts, loadProducts, saveSales, loadSales, 
@@ -315,7 +315,7 @@ const ByProductsRevenue: React.FC = () => {
             />
             <StatsCard
               title="By-Products"
-              value={formatDecimal(byProducts.reduce((sum, product) => sum + product.quantity, 0))}
+              value={formatWeight(byProducts.reduce((sum, product) => sum + product.quantity, 0))}
               subtitle="Total Quintals"
               icon={<Package className="h-6 w-6" />}
               color="from-purple-500 to-purple-600"
@@ -383,7 +383,7 @@ const ByProductsRevenue: React.FC = () => {
                               {product.type.replace('-', ' ')}
                             </td>
                             <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                              {formatDecimal(product.quantity)}
+                              {formatDecimal(product.quantity, 2)}
                             </td>
                             <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-600">
                               {new Date(product.productionDate).toLocaleDateString()}

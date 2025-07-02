@@ -68,3 +68,13 @@ export const getGSTRate = (gstSlab: string): number => {
   };
   return rates[gstSlab] || 0;
 };
+
+// Enhanced formatting for products and by-products
+export const formatQuantity = (quantity: number, unit?: string): string => {
+  const formatted = formatDecimal(quantity, 2);
+  return unit ? `${formatted} ${unit}` : formatted;
+};
+
+export const formatWeight = (weight: number): string => {
+  return `${formatDecimal(weight, 2)} Qtl`;
+};
