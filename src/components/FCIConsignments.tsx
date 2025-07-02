@@ -30,23 +30,33 @@ const FCIConsignments: React.FC = () => {
 
   // Auto-save data when state changes
   useEffect(() => {
-    saveFCIConsignments(consignments);
+    if (consignments.length >= 0) {
+      saveFCIConsignments(consignments);
+    }
   }, [consignments]);
 
   useEffect(() => {
-    saveLorryFreights(lorryFreights);
+    if (lorryFreights.length >= 0) {
+      saveLorryFreights(lorryFreights);
+    }
   }, [lorryFreights]);
 
   useEffect(() => {
-    saveRiceProductions(riceProductions);
+    if (riceProductions.length >= 0) {
+      saveRiceProductions(riceProductions);
+    }
   }, [riceProductions]);
 
   useEffect(() => {
-    saveGunnyStocks(gunnyStocks);
+    if (gunnyStocks.length >= 0) {
+      saveGunnyStocks(gunnyStocks);
+    }
   }, [gunnyStocks]);
 
   useEffect(() => {
-    saveRexinStickers(rexinStickers);
+    if (rexinStickers.length >= 0) {
+      saveRexinStickers(rexinStickers);
+    }
   }, [rexinStickers]);
 
   // Form states
@@ -110,6 +120,8 @@ const FCIConsignments: React.FC = () => {
   const handleConsignmentSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
+    console.log('Creating FCI consignment with form data:', consignmentForm);
+    
     // Check if we have enough stock
     if (totalGunnyStock < 580) {
       alert(`Insufficient gunny stock! Required: 580, Available: ${totalGunnyStock}`);
@@ -133,6 +145,8 @@ const FCIConsignments: React.FC = () => {
       status: 'in-transit',
       notes: consignmentForm.notes
     };
+
+    console.log('Creating new FCI consignment:', newConsignment);
 
     // Deduct gunny stock (580 gunnies)
     let remainingToDeduct = 580;
@@ -160,9 +174,17 @@ const FCIConsignments: React.FC = () => {
       return sticker;
     });
 
-    setConsignments([...consignments, newConsignment]);
+    const updatedConsignments = [...consignments, newConsignment];
+    setConsignments(updatedConsignments);
     setGunnyStocks(updatedGunnyStocks);
     setRexinStickers(updatedRexinStickers);
+    
+    // Force save immediately
+    saveFCIConsignments(updatedConsignments);
+    saveGunnyStocks(updatedGunnyStocks);
+    saveRexinStickers(updatedRexinStickers);
+    
+    console.log('FCI consignment created and saved successfully');
     
     setConsignmentForm({ ackNumber: '', gunnyType: '2024-25-new', consignmentDate: '', notes: '' });
     setShowAddForm(false);
@@ -198,7 +220,12 @@ const FCIConsignments: React.FC = () => {
       isBranConsignment: freightForm.isBranConsignment
     };
 
-    setLorryFreights([...lorryFreights, newFreight]);
+    const updatedFreights = [...lorryFreights, newFreight];
+    setLorryFreights(updatedFreights);
+    
+    // Force save immediately
+    saveLorryFreights(updatedFreights);
+    
     setFreightForm({ 
       consignmentId: '', ackNumber: '', lorryNumber: '', transporterName: '', 
       freightPerMT: '', deductions: [], advancePaid: '', dispatchDate: '', 
@@ -224,7 +251,7 @@ const FCIConsignments: React.FC = () => {
   };
 
   const saveEdit = (id: string) => {
-    setConsignments(consignments.map(consignment => 
+    const updatedConsignments = consignments.map(consignment => 
       consignment.id === id ? {
         ...consignment,
         ackNumber: editForm.ackNumber,
@@ -238,7 +265,10 @@ const FCIConsignments: React.FC = () => {
         passingFeePaid: editForm.passingFeePaid,
         notes: editForm.notes
       } : consignment
-    ));
+    );
+    
+    setConsignments(updatedConsignments);
+    saveFCIConsignments(updatedConsignments);
     setEditingItem(null);
   };
 
@@ -345,6 +375,11 @@ const FCIConsignments: React.FC = () => {
     }
   };
 
+  // Calculate ACK capacity from stocks
+  const gunnyACKCapacity = Math.floor(totalGunnyStock / 580);
+  const stickerACKCapacity = Math.floor(totalRexinStickers / 580);
+  const maxACKCapacity = Math.min(gunnyACKCapacity, stickerACKCapacity);
+
   const tabs = [
     { id: 'consignments', label: 'FCI Consignments', icon: Package },
     { id: 'freight', label: 'Lorry Freight', icon: Truck }
@@ -401,9 +436,9 @@ const FCIConsignments: React.FC = () => {
             color="from-red-500 to-red-600"
           />
           <StatsCard
-            title="Available Stock"
-            value={`${totalGunnyStock} Gunnies`}
-            subtitle={`${totalRexinStickers} Stickers`}
+            title="ACK Capacity"
+            value={`${maxACKCapacity} ACKs`}
+            subtitle={`${totalGunnyStock} Gunnies, ${totalRexinStickers} Stickers`}
             icon={<CheckCircle className="h-6 w-6" />}
             color="from-green-500 to-green-600"
           />
@@ -685,17 +720,17 @@ const FCIConsignments: React.FC = () => {
                   <form onSubmit={handleConsignmentSubmit} className="space-y-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">ACK Number</label>
-                      <select
+                      <input
+                        type="text"
                         value={consignmentForm.ackNumber}
                         onChange={(e) => setConsignmentForm({ ...consignmentForm, ackNumber: e.target.value })}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="Enter ACK Number (e.g., ACK001, 1 ACK BOILED, etc.)"
                         required
-                      >
-                        <option value="">Select ACK Number</option>
-                        {availableRiceProductions.map(prod => (
-                          <option key={prod.id} value={prod.ackNumber}>{prod.ackNumber}</option>
-                        ))}
-                      </select>
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        Enter any ACK number you generated online
+                      </p>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Gunny Type</label>
@@ -729,12 +764,12 @@ const FCIConsignments: React.FC = () => {
                       </div>
                     </div>
                     <div className="bg-blue-50 p-3 rounded-lg">
-                      <h4 className="text-sm font-medium text-blue-700 mb-2">Available Stock</h4>
+                      <h4 className="text-sm font-medium text-blue-700 mb-2">Available Stock & ACK Capacity</h4>
                       <div className="text-xs text-blue-600 space-y-1">
-                        <div>Available Gunnies: {totalGunnyStock}</div>
-                        <div>Available Stickers: {totalRexinStickers}</div>
-                        <div className={`font-medium ${totalGunnyStock >= 580 && totalRexinStickers >= 580 ? 'text-green-600' : 'text-red-600'}`}>
-                          {totalGunnyStock >= 580 && totalRexinStickers >= 580 ? '✓ Sufficient stock available' : '✗ Insufficient stock'}
+                        <div>Available Gunnies: {totalGunnyStock} (Capacity: {gunnyACKCapacity} ACKs)</div>
+                        <div>Available Stickers: {totalRexinStickers} (Capacity: {stickerACKCapacity} ACKs)</div>
+                        <div className={`font-medium ${maxACKCapacity >= 1 ? 'text-green-600' : 'text-red-600'}`}>
+                          {maxACKCapacity >= 1 ? `✓ Can create ${maxACKCapacity} ACK(s)` : '✗ Insufficient stock for 1 ACK'}
                         </div>
                       </div>
                     </div>
@@ -751,7 +786,7 @@ const FCIConsignments: React.FC = () => {
                     <div className="flex space-x-3 pt-4">
                       <button 
                         type="submit" 
-                        disabled={totalGunnyStock < 580 || totalRexinStickers < 580}
+                        disabled={maxACKCapacity < 1}
                         className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed"
                       >
                         Create Consignment
