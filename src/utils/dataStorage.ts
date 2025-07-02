@@ -153,11 +153,27 @@ export const loadFRKStocks = (): FRKStock[] => loadFromLocalStorage(STORAGE_KEYS
 export const saveRexinStickers = (data: RexinSticker[]) => saveToLocalStorage(STORAGE_KEYS.REXIN_STICKERS, data);
 export const loadRexinStickers = (): RexinSticker[] => loadFromLocalStorage(STORAGE_KEYS.REXIN_STICKERS);
 
-export const saveReconciliations = (data: ReconciliationRecord[]) => saveToLocalStorage(STORAGE_KEYS.RECONCILIATIONS, data);
-export const loadReconciliations = (): ReconciliationRecord[] => loadFromLocalStorage(STORAGE_KEYS.RECONCILIATIONS);
+export const saveReconciliations = (data: ReconciliationRecord[]) => {
+  console.log('Saving reconciliations:', data);
+  saveToLocalStorage(STORAGE_KEYS.RECONCILIATIONS, data);
+};
 
-export const saveGunnyDispatches = (data: OldGunnyDispatch[]) => saveToLocalStorage(STORAGE_KEYS.GUNNY_DISPATCHES, data);
-export const loadGunnyDispatches = (): OldGunnyDispatch[] => loadFromLocalStorage(STORAGE_KEYS.GUNNY_DISPATCHES);
+export const loadReconciliations = (): ReconciliationRecord[] => {
+  const data = loadFromLocalStorage<ReconciliationRecord>(STORAGE_KEYS.RECONCILIATIONS);
+  console.log('Loaded reconciliations:', data);
+  return data;
+};
+
+export const saveGunnyDispatches = (data: OldGunnyDispatch[]) => {
+  console.log('Saving gunny dispatches:', data);
+  saveToLocalStorage(STORAGE_KEYS.GUNNY_DISPATCHES, data);
+};
+
+export const loadGunnyDispatches = (): OldGunnyDispatch[] => {
+  const data = loadFromLocalStorage<OldGunnyDispatch>(STORAGE_KEYS.GUNNY_DISPATCHES);
+  console.log('Loaded gunny dispatches:', data);
+  return data;
+};
 
 // Backup and Restore Functions
 export const exportAllData = () => {

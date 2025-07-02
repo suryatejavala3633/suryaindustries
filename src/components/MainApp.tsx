@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Package, Factory, Truck, Sticker, TrendingUp, Users, Zap, Home } from 'lucide-react';
+import { Package, Factory, Truck, Sticker, TrendingUp, Users, Zap, Home, HardDrive } from 'lucide-react';
 import LandingPage from './LandingPage';
 import Dashboard from './Dashboard';
 import RiceProduction from './RiceProduction';
@@ -8,8 +8,9 @@ import StockManagement from './StockManagement';
 import ByProductsRevenue from './ByProductsRevenue';
 import SalariesWages from './SalariesWages';
 import ElectricityBillCalculator from './ElectricityBillCalculator';
+import DataBackupManager from './DataBackupManager';
 
-type TabType = 'home' | 'paddy' | 'production' | 'fci' | 'stock' | 'revenue' | 'salaries' | 'electricity';
+type TabType = 'home' | 'paddy' | 'production' | 'fci' | 'stock' | 'revenue' | 'salaries' | 'electricity' | 'backup';
 
 const MainApp: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabType>('home');
@@ -23,6 +24,7 @@ const MainApp: React.FC = () => {
     { id: 'salaries', label: 'Salaries & Wages', icon: Users, component: SalariesWages },
     { id: 'revenue', label: 'By-Products & Revenue', icon: TrendingUp, component: ByProductsRevenue },
     { id: 'electricity', label: 'Electricity Bills', icon: Zap, component: ElectricityBillCalculator },
+    { id: 'backup', label: 'Backup & Restore', icon: HardDrive, component: DataBackupManager },
   ];
 
   const handleNavigate = (tabId: string) => {

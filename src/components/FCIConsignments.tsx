@@ -37,6 +37,19 @@ const FCIConsignments: React.FC = () => {
     notes: ''
   });
 
+  const [editForm, setEditForm] = useState({
+    ackNumber: '',
+    gunnyType: '2024-25-new' as '2024-25-new' | '2023-24-leftover',
+    consignmentDate: '',
+    lorryNumber: '',
+    transporterName: '',
+    freightRate: '',
+    eWayBill: '',
+    fciUnloadingHamali: '5600',
+    fciPassing: '7000',
+    notes: ''
+  });
+
   // Load data on component mount
   useEffect(() => {
     setConsignments(loadFCIConsignments());
@@ -109,8 +122,10 @@ const FCIConsignments: React.FC = () => {
 
   // Calculate FCI expenses
   const fciExpenses = useMemo(() => {
-    const totalUnloadingHamali = consignments.length * 5600;
-    const totalFciPassing = consignments.length * 7000;
+    const totalUnloadingHamali = consignments.reduce((sum, consignment) => 
+      sum + parseFloat(consignment.fciUnloadingHamali || '5600'), 0);
+    const totalFciPassing = consignments.reduce((sum, consignment) => 
+      sum + parseFloat(consignment.fciPassingFee || '7000'), 0);
     const totalExpenses = totalUnloadingHamali + totalFciPassing;
     
     return {
@@ -125,6 +140,56 @@ const FCIConsignments: React.FC = () => {
       ...prev,
       [batchId]: quantity
     }));
+  };
+
+  const startEditConsignment = (consignment: FCIConsignment) => {
+    setEditingConsignment(consignment.id);
+    setEditForm({
+      ackNumber: consignment.ackNumber,
+      gunnyType: consignment.gunnyType,
+      consignmentDate: consignment.consignmentDate,
+      lorryNumber: consignment.lorryNumber || '',
+      transporterName: consignment.transporterName || '',
+      freightRate: '',
+      eWayBill: consignment.eWayBill || '',
+      fciUnloadingHamali: consignment.fciUnloadingHamali || '5600',
+      fciPassing: consignment.fciPassingFee || '7000',
+      notes: consignment.notes || ''
+    });
+  };
+
+  const saveEditConsignment = (id: string) => {
+    setConsignments(consignments.map(consignment => 
+      consignment.id === id ? {
+        ...consignment,
+        ackNumber: editForm.ackNumber,
+        gunnyType: editForm.gunnyType,
+        consignmentDate: editForm.consignmentDate,
+        lorryNumber: editForm.lorryNumber,
+        transporterName: editForm.transporterName,
+        eWayBill: editForm.eWayBill,
+        fciUnloadingHamali: editForm.fciUnloadingHamali,
+        fciPassingFee: editForm.fciPassing,
+        notes: editForm.notes
+      } : consignment
+    ));
+    setEditingConsignment(null);
+  };
+
+  const cancelEditConsignment = () => {
+    setEditingConsignment(null);
+    setEditForm({
+      ackNumber: '',
+      gunnyType: '2024-25-new',
+      consignmentDate: '',
+      lorryNumber: '',
+      transporterName: '',
+      freightRate: '',
+      eWayBill: '',
+      fciUnloadingHamali: '5600',
+      fciPassing: '7000',
+      notes: ''
+    });
   };
 
   const handleConsignmentSubmit = (e: React.FormEvent) => {
@@ -366,16 +431,35 @@ const FCIConsignments: React.FC = () => {
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Transport</th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">FCI Expenses</th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-200">
                         {consignments.map((consignment) => (
                           <tr key={consignment.id} className="hover:bg-gray-50">
                             <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-blue-600">
-                              {consignment.ackNumber}
+                              {editingConsignment === consignment.id ? (
+                                <input
+                                  type="text"
+                                  value={editForm.ackNumber}
+                                  onChange={(e) => setEditForm({ ...editForm, ackNumber: e.target.value })}
+                                  className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
+                                />
+                              ) : (
+                                consignment.ackNumber
+                              )}
                             </td>
                             <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-600">
-                              {new Date(consignment.consignmentDate).toLocaleDateString()}
+                              {editingConsignment === consignment.id ? (
+                                <input
+                                  type="date"
+                                  value={editForm.consignmentDate}
+                                  onChange={(e) => setEditForm({ ...editForm, consignmentDate: e.target.value })}
+                                  className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
+                                />
+                              ) : (
+                                new Date(consignment.consignmentDate).toLocaleDateString()
+                              )}
                             </td>
                             <td className="px-4 py-4 text-sm text-gray-900">
                               <div className="space-y-1">
@@ -387,14 +471,60 @@ const FCIConsignments: React.FC = () => {
                             </td>
                             <td className="px-4 py-4 text-sm text-gray-600">
                               <div className="space-y-1">
-                                <div>Lorry: <span className="font-medium">{consignment.lorryNumber || '-'}</span></div>
-                                <div>Transporter: <span className="font-medium">{consignment.transporterName || '-'}</span></div>
+                                <div>Lorry: 
+                                  {editingConsignment === consignment.id ? (
+                                    <input
+                                      type="text"
+                                      value={editForm.lorryNumber}
+                                      onChange={(e) => setEditForm({ ...editForm, lorryNumber: e.target.value })}
+                                      className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 mt-1"
+                                      placeholder="Lorry number"
+                                    />
+                                  ) : (
+                                    <span className="font-medium ml-1">{consignment.lorryNumber || '-'}</span>
+                                  )}
+                                </div>
+                                <div>Transporter: 
+                                  {editingConsignment === consignment.id ? (
+                                    <input
+                                      type="text"
+                                      value={editForm.transporterName}
+                                      onChange={(e) => setEditForm({ ...editForm, transporterName: e.target.value })}
+                                      className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 mt-1"
+                                      placeholder="Transporter name"
+                                    />
+                                  ) : (
+                                    <span className="font-medium ml-1">{consignment.transporterName || '-'}</span>
+                                  )}
+                                </div>
                               </div>
                             </td>
                             <td className="px-4 py-4 text-sm text-gray-900">
                               <div className="space-y-1">
-                                <div>Hamali: <span className="font-semibold">{formatCurrency(parseFloat(consignment.fciUnloadingHamali || '5600'))}</span></div>
-                                <div>Passing: <span className="font-semibold">{formatCurrency(parseFloat(consignment.fciPassingFee || '7000'))}</span></div>
+                                <div>Hamali: 
+                                  {editingConsignment === consignment.id ? (
+                                    <input
+                                      type="number"
+                                      value={editForm.fciUnloadingHamali}
+                                      onChange={(e) => setEditForm({ ...editForm, fciUnloadingHamali: e.target.value })}
+                                      className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 mt-1"
+                                    />
+                                  ) : (
+                                    <span className="font-semibold ml-1">{formatCurrency(parseFloat(consignment.fciUnloadingHamali || '5600'))}</span>
+                                  )}
+                                </div>
+                                <div>Passing: 
+                                  {editingConsignment === consignment.id ? (
+                                    <input
+                                      type="number"
+                                      value={editForm.fciPassing}
+                                      onChange={(e) => setEditForm({ ...editForm, fciPassing: e.target.value })}
+                                      className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 mt-1"
+                                    />
+                                  ) : (
+                                    <span className="font-semibold ml-1">{formatCurrency(parseFloat(consignment.fciPassingFee || '7000'))}</span>
+                                  )}
+                                </div>
                                 <div className="text-xs text-blue-600 font-medium">
                                   Total: {formatCurrency(parseFloat(consignment.fciUnloadingHamali || '5600') + parseFloat(consignment.fciPassingFee || '7000'))}
                                 </div>
@@ -410,6 +540,33 @@ const FCIConsignments: React.FC = () => {
                               }`}>
                                 <span className="capitalize">{consignment.status.replace('-', ' ')}</span>
                               </span>
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap text-sm">
+                              <div className="flex space-x-2">
+                                {editingConsignment === consignment.id ? (
+                                  <>
+                                    <button
+                                      onClick={() => saveEditConsignment(consignment.id)}
+                                      className="text-green-600 hover:text-green-800"
+                                    >
+                                      <Save className="h-4 w-4" />
+                                    </button>
+                                    <button
+                                      onClick={cancelEditConsignment}
+                                      className="text-red-600 hover:text-red-800"
+                                    >
+                                      <X className="h-4 w-4" />
+                                    </button>
+                                  </>
+                                ) : (
+                                  <button
+                                    onClick={() => startEditConsignment(consignment)}
+                                    className="text-blue-600 hover:text-blue-800"
+                                  >
+                                    <Edit className="h-4 w-4" />
+                                  </button>
+                                )}
+                              </div>
                             </td>
                           </tr>
                         ))}

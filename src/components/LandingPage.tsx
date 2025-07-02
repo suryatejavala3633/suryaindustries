@@ -66,11 +66,15 @@ const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
   ];
 
   const stats = [
-    { label: 'Years of Experience', value: '25+', icon: Award },
-    { label: 'Processing Capacity', value: '500 MT/Day', icon: Factory },
+    { label: 'Years of Experience', value: '15+', icon: Award },
+    { label: 'Processing Capacity', value: '50 Ton/Day', icon: Factory },
     { label: 'Quality Assurance', value: '100%', icon: Shield },
     { label: 'Uptime', value: '99.9%', icon: Clock }
   ];
+
+  const openGoogleMaps = () => {
+    window.open('https://maps.app.goo.gl/DL1BMMsVDUmqkLQQ6', '_blank');
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
@@ -95,14 +99,17 @@ const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
             </p>
             
             {/* Contact Info */}
-            <div className="flex flex-wrap justify-center gap-6 mb-12">
-              <div className="flex items-center space-x-2 text-gray-600">
+            <div className="flex flex-wrap justify-center gap-6 mb-8">
+              <div className="flex items-center space-x-2 text-gray-600 cursor-pointer hover:text-blue-600 transition-colors" onClick={openGoogleMaps}>
                 <MapPin className="h-5 w-5 text-blue-600" />
-                <span>Sangareddy, Telangana</span>
+                <div className="text-left">
+                  <div className="font-medium">229/34, 229/41, 229/60</div>
+                  <div className="text-sm">Mangapur (V), Hathnoora (M), Sangareddy (D)</div>
+                </div>
               </div>
               <div className="flex items-center space-x-2 text-gray-600">
                 <Phone className="h-5 w-5 text-blue-600" />
-                <span>+91 98765 43210</span>
+                <span>098495 23633</span>
               </div>
               <div className="flex items-center space-x-2 text-gray-600">
                 <Mail className="h-5 w-5 text-blue-600" />
@@ -204,7 +211,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
               <div className="bg-white/10 backdrop-blur-sm rounded-xl p-8 border border-white/20">
                 <Award className="h-12 w-12 text-white mx-auto mb-4" />
                 <h3 className="text-xl font-bold mb-3">Trusted Partner</h3>
-                <p className="opacity-90">Decades of experience serving farmers and distributors</p>
+                <p className="opacity-90">15+ years of experience serving farmers and distributors</p>
               </div>
             </div>
           </div>
