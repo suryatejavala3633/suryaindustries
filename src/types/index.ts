@@ -91,8 +91,8 @@ export interface RiceProduction {
   ackNumber: string;
   riceType: 'boiled' | 'raw';
   paddyUsed: number; // in quintals
-  riceProduced: number; // in quintals (290 Qtl fixed)
-  millersDue: number; // 1% of paddy weight
+  riceProduced: number; // in quintals (287.1 Qtl per ACK)
+  millersDue: number; // Removed but kept for compatibility
   productionDate: string;
   millName?: string;
   notes?: string;
@@ -101,13 +101,16 @@ export interface RiceProduction {
 export interface FCIConsignment {
   id: string;
   ackNumber: string;
-  riceQuantity: number; // 290 quintals
+  riceQuantity: number; // 287.1 quintals
   frkQuantity: number; // 290 kg
   totalBags: number; // 580 bags
   gunnyType: '2024-25-new' | '2023-24-leftover';
   stickersUsed: number; // 580 stickers
   consignmentDate: string;
   status: 'in-transit' | 'dumping-done' | 'qc-passed' | 'rejected' | 'dispatched';
+  lorryNumber?: string;
+  transporterName?: string;
+  eWayBill?: string;
   fciWeight?: number;
   fciMoisture?: number;
   fciUnloadingHamali?: string;
@@ -122,7 +125,7 @@ export interface LorryFreight {
   ackNumber: string;
   lorryNumber: string;
   transporterName: string;
-  quantityMT: number; // Quantity in Metric Tons
+  quantityMT: number; // Quantity in Metric Tons (29 MT for 290 Qtl)
   freightPerMT: number; // Rate per MT
   grossFreightAmount: number; // Total before deductions
   deductions: { id: string; description: string; amount: number }[]; // Manual deductions
@@ -308,6 +311,8 @@ export interface ElectricityReading {
   kwh: number;
   kvah: number;
   rmd: number; // Recorded Maximum Demand in kW
+  billAmount: number;
+  billPeriod: string;
   notes?: string;
 }
 

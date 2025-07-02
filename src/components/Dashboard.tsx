@@ -16,6 +16,7 @@ const Dashboard: React.FC = () => {
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
   const [showFilters, setShowFilters] = useState(false);
   const [activeTab, setActiveTab] = useState<'dashboard' | 'reconciliation'>('dashboard');
+  const [activeUnloadingPoint, setActiveUnloadingPoint] = useState<string>('all');
 
   // Get unique values for filters
   const uniqueCenters = useMemo(() => {
@@ -79,6 +80,12 @@ const Dashboard: React.FC = () => {
     }, {} as Record<string, { totalQuintals: number; totalBags: number }>);
   }, [filteredData]);
 
+  // Filter data by active unloading point
+  const displayData = useMemo(() => {
+    if (activeUnloadingPoint === 'all') return filteredData;
+    return filteredData.filter(record => record.unloadingPoint === activeUnloadingPoint);
+  }, [filteredData, activeUnloadingPoint]);
+
   const handleExport = () => {
     const csvContent = [
       ['S.No', 'Date', 'Vehicle No', 'W. Slip No', 'Truckchit No', 'Center Name', 'District', 'New Bags', 'Old Bags', 'Total Bags', 'Total Quintals', 'Moisture', 'Unloading Point'],
@@ -114,6 +121,22 @@ const Dashboard: React.FC = () => {
     setSelectedDistrict('');
     setSelectedUnloadingPoint('');
     setDateRange({ start: '', end: '' });
+    setActiveUnloadingPoint('all');
+  };
+
+  const getUnloadingPointColor = (point: string) => {
+    switch (point) {
+      case 'OLD GODOWN':
+        return 'from-orange-500 to-orange-600';
+      case 'NEW GODOWN':
+        return 'from-green-500 to-green-600';
+      case 'PLANT SHED':
+        return 'from-blue-500 to-blue-600';
+      case 'BATTI':
+        return 'from-purple-500 to-purple-600';
+      default:
+        return 'from-gray-500 to-gray-600';
+    }
   };
 
   if (activeTab === 'reconciliation') {
@@ -185,23 +208,62 @@ const Dashboard: React.FC = () => {
           />
         </div>
 
-        {/* Unloading Point Summary */}
+        {/* Enhanced Unloading Point Summary with Colorful Tabs */}
         <div className="bg-white rounded-xl shadow-lg border border-gray-200 mb-8">
           <div className="p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Stock by Unloading Point</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-6">Stock by Unloading Point</h3>
+            
+            {/* Tab Navigation */}
+            <div className="flex flex-wrap gap-2 mb-6">
+              <button
+                onClick={() => setActiveUnloadingPoint('all')}
+                className={`px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 ${
+                  activeUnloadingPoint === 'all'
+                    ? 'bg-gradient-to-r from-gray-500 to-gray-600 text-white shadow-md'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                All Points ({formatNumber(summaryStats.totalBags)} bags)
+              </button>
+              {Object.entries(unloadingPointSummary).map(([point, data]) => (
+                <button
+                  key={point}
+                  onClick={() => setActiveUnloadingPoint(point)}
+                  className={`px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 ${
+                    activeUnloadingPoint === point
+                      ? `bg-gradient-to-r ${getUnloadingPointColor(point)} text-white shadow-md`
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  {point} ({formatNumber(data.totalBags)})
+                </button>
+              ))}
+            </div>
+
+            {/* Summary Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               {Object.entries(unloadingPointSummary).map(([point, data]) => (
-                <div key={point} className="bg-gray-50 rounded-lg p-4">
+                <div 
+                  key={point} 
+                  className={`rounded-lg p-4 cursor-pointer transition-all duration-200 hover:shadow-lg ${
+                    activeUnloadingPoint === point 
+                      ? `bg-gradient-to-r ${getUnloadingPointColor(point)} text-white shadow-md` 
+                      : 'bg-gray-50 hover:bg-gray-100'
+                  }`}
+                  onClick={() => setActiveUnloadingPoint(point)}
+                >
                   <div className="flex items-center justify-between mb-2">
-                    <h4 className="font-medium text-gray-900">{point}</h4>
-                    <MapPin className="h-4 w-4 text-gray-500" />
+                    <h4 className={`font-medium ${activeUnloadingPoint === point ? 'text-white' : 'text-gray-900'}`}>
+                      {point}
+                    </h4>
+                    <MapPin className={`h-4 w-4 ${activeUnloadingPoint === point ? 'text-white' : 'text-gray-500'}`} />
                   </div>
                   <div className="space-y-1">
-                    <div className="text-sm text-gray-600">
-                      Quintals: <span className="font-semibold text-gray-900">{formatDecimal(data.totalQuintals)}</span>
+                    <div className={`text-sm ${activeUnloadingPoint === point ? 'text-white' : 'text-gray-600'}`}>
+                      Quintals: <span className="font-semibold">{formatDecimal(data.totalQuintals)}</span>
                     </div>
-                    <div className="text-sm text-gray-600">
-                      Bags: <span className="font-semibold text-gray-900">{formatNumber(data.totalBags)}</span>
+                    <div className={`text-sm ${activeUnloadingPoint === point ? 'text-white' : 'text-gray-600'}`}>
+                      Bags: <span className="font-semibold">{formatNumber(data.totalBags)}</span>
                     </div>
                   </div>
                 </div>
@@ -240,7 +302,7 @@ const Dashboard: React.FC = () => {
                   Filters
                 </button>
                 
-                {(selectedCenter || selectedDistrict || selectedUnloadingPoint || searchTerm || dateRange.start || dateRange.end) && (
+                {(selectedCenter || selectedDistrict || selectedUnloadingPoint || searchTerm || dateRange.start || dateRange.end || activeUnloadingPoint !== 'all') && (
                   <button
                     onClick={clearFilters}
                     className="px-4 py-3 text-sm font-medium text-gray-600 hover:text-gray-800 transition-colors duration-200"
@@ -270,7 +332,7 @@ const Dashboard: React.FC = () => {
         </div>
 
         {/* Data Table */}
-        <DataTable data={filteredData} />
+        <DataTable data={displayData} />
       </div>
     </div>
   );

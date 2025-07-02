@@ -1,25 +1,28 @@
-import React, { useState, useEffect } from 'react';
-import { Plus, Truck, Package, CheckCircle, Clock, AlertCircle, Edit, Save, X } from 'lucide-react';
-import { FCIConsignment, FRKStock, GunnyStock, RexinSticker, RiceProduction } from '../types';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Plus, Truck, Package, CheckCircle, Clock, AlertCircle, Edit, Save, X, Calculator, CreditCard, FileText } from 'lucide-react';
+import { FCIConsignment, FRKStock, GunnyStock, RexinSticker, RiceProduction, LorryFreight } from '../types';
 import { formatNumber, formatDecimal, formatCurrency } from '../utils/calculations';
 import { 
   saveFCIConsignments, loadFCIConsignments, 
   saveFRKStocks, loadFRKStocks,
   saveGunnyStocks, loadGunnyStocks,
   saveRexinStickers, loadRexinStickers,
-  loadRiceProductions
+  loadRiceProductions,
+  saveLorryFreights, loadLorryFreights
 } from '../utils/dataStorage';
 import StatsCard from './StatsCard';
 
 const FCIConsignments: React.FC = () => {
+  const [activeTab, setActiveTab] = useState<'consignments' | 'freight' | 'payments'>('consignments');
   const [consignments, setConsignments] = useState<FCIConsignment[]>([]);
   const [frkStocks, setFrkStocks] = useState<FRKStock[]>([]);
   const [gunnyStocks, setGunnyStocks] = useState<GunnyStock[]>([]);
   const [rexinStickers, setRexinStickers] = useState<RexinSticker[]>([]);
   const [riceProductions, setRiceProductions] = useState<RiceProduction[]>([]);
+  const [lorryFreights, setLorryFreights] = useState<LorryFreight[]>([]);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingConsignment, setEditingConsignment] = useState<string | null>(null);
-  const [selectedFrkBatches, setSelectedFrkBatches] = useState<string[]>([]);
+  const [selectedFrkBatches, setSelectedFrkBatches] = useState<{[key: string]: number}>({});
 
   const [consignmentForm, setConsignmentForm] = useState({
     ackNumber: '',
@@ -27,23 +30,8 @@ const FCIConsignments: React.FC = () => {
     consignmentDate: '',
     lorryNumber: '',
     transporterName: '',
+    freightRate: '',
     eWayBill: '',
-    notes: ''
-  });
-
-  const [editForm, setEditForm] = useState({
-    ackNumber: '',
-    gunnyType: '2024-25-new' as '2024-25-new' | '2023-24-leftover',
-    consignmentDate: '',
-    lorryNumber: '',
-    transporterName: '',
-    eWayBill: '',
-    fciWeight: '',
-    fciMoisture: '',
-    fciUnloadingHamali: '',
-    fciPassingFee: '',
-    passingFeePaid: false,
-    status: 'in-transit' as FCIConsignment['status'],
     notes: ''
   });
 
@@ -54,6 +42,7 @@ const FCIConsignments: React.FC = () => {
     setGunnyStocks(loadGunnyStocks());
     setRexinStickers(loadRexinStickers());
     setRiceProductions(loadRiceProductions());
+    setLorryFreights(loadLorryFreights());
   }, []);
 
   // Auto-save data when state changes
@@ -73,62 +62,77 @@ const FCIConsignments: React.FC = () => {
     if (rexinStickers.length > 0) saveRexinStickers(rexinStickers);
   }, [rexinStickers]);
 
+  useEffect(() => {
+    if (lorryFreights.length > 0) saveLorryFreights(lorryFreights);
+  }, [lorryFreights]);
+
   // Calculate available stocks
-  const totalFrkStock = frkStocks.reduce((sum, stock) => sum + stock.quantity, 0);
-  const usedFrkStock = consignments.reduce((sum, consignment) => sum + 290, 0); // 290 kg per consignment
-  const availableFrkStock = totalFrkStock - usedFrkStock;
+  const availableStocks = useMemo(() => {
+    const totalFrkStock = frkStocks.reduce((sum, stock) => sum + stock.quantity, 0);
+    const usedFrkStock = consignments.reduce((sum, consignment) => sum + 290, 0);
+    const availableFrkStock = totalFrkStock - usedFrkStock;
 
-  const totalGunnies = gunnyStocks.reduce((sum, stock) => sum + stock.quantity, 0);
-  const usedGunnies = consignments.reduce((sum, consignment) => sum + 580, 0); // 580 gunnies per consignment
-  const availableGunnies = totalGunnies - usedGunnies;
+    const totalGunnies = gunnyStocks.reduce((sum, stock) => sum + stock.quantity, 0);
+    const usedGunnies = consignments.reduce((sum, consignment) => sum + 580, 0);
+    const availableGunnies = totalGunnies - usedGunnies;
 
-  const totalStickers = rexinStickers.reduce((sum, sticker) => sum + sticker.quantity, 0);
-  const usedStickers = consignments.reduce((sum, consignment) => sum + 580, 0); // 580 stickers per consignment
-  const availableStickers = totalStickers - usedStickers;
+    const totalStickers = rexinStickers.reduce((sum, sticker) => sum + sticker.quantity, 0);
+    const usedStickers = consignments.reduce((sum, consignment) => sum + 580, 0);
+    const availableStickers = totalStickers - usedStickers;
 
-  // Calculate available rice from productions (287.1 Qtl per ACK)
-  const totalRiceProduced = riceProductions.reduce((sum, prod) => sum + prod.riceProduced, 0);
-  const usedRiceInConsignments = consignments.reduce((sum, consignment) => sum + 287.1, 0); // 287.1 Qtl per consignment
-  const availableRice = totalRiceProduced - usedRiceInConsignments;
+    const totalRiceProduced = riceProductions.reduce((sum, prod) => sum + prod.riceProduced, 0);
+    const usedRiceInConsignments = consignments.reduce((sum, consignment) => sum + 287.1, 0);
+    const availableRice = totalRiceProduced - usedRiceInConsignments;
+
+    return {
+      availableFrkStock,
+      availableGunnies,
+      availableStickers,
+      availableRice
+    };
+  }, [frkStocks, gunnyStocks, rexinStickers, riceProductions, consignments]);
 
   // Get available FRK batches for selection
-  const getAvailableFrkBatches = () => {
+  const availableFrkBatches = useMemo(() => {
     return frkStocks.filter(stock => stock.quantity > 0).map(stock => ({
       ...stock,
       availableQty: stock.quantity
     }));
-  };
+  }, [frkStocks]);
 
   // Calculate total selected FRK quantity
-  const getSelectedFrkQuantity = () => {
-    return selectedFrkBatches.reduce((total, batchId) => {
-      const batch = frkStocks.find(stock => stock.id === batchId);
-      return total + (batch?.quantity || 0);
-    }, 0);
+  const selectedFrkQuantity = useMemo(() => {
+    return Object.values(selectedFrkBatches).reduce((total, qty) => total + qty, 0);
+  }, [selectedFrkBatches]);
+
+  const handleFrkBatchSelection = (batchId: string, quantity: number) => {
+    setSelectedFrkBatches(prev => ({
+      ...prev,
+      [batchId]: quantity
+    }));
   };
 
   const handleConsignmentSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
     // Validation checks
-    if (availableRice < 287.1) {
-      alert(`Insufficient rice! Required: 287.1 Qtl, Available: ${formatDecimal(availableRice)} Qtl`);
+    if (availableStocks.availableRice < 287.1) {
+      alert(`Insufficient rice! Required: 287.1 Qtl, Available: ${formatDecimal(availableStocks.availableRice)} Qtl`);
       return;
     }
 
-    if (availableGunnies < 580) {
-      alert(`Insufficient gunnies! Required: 580, Available: ${availableGunnies}`);
+    if (availableStocks.availableGunnies < 580) {
+      alert(`Insufficient gunnies! Required: 580, Available: ${availableStocks.availableGunnies}`);
       return;
     }
 
-    if (availableStickers < 580) {
-      alert(`Insufficient stickers! Required: 580, Available: ${availableStickers}`);
+    if (availableStocks.availableStickers < 580) {
+      alert(`Insufficient stickers! Required: 580, Available: ${availableStocks.availableStickers}`);
       return;
     }
 
-    const selectedFrkQty = getSelectedFrkQuantity();
-    if (selectedFrkQty < 290) {
-      alert(`Insufficient FRK selected! Required: 290 kg, Selected: ${selectedFrkQty} kg`);
+    if (selectedFrkQuantity < 290) {
+      alert(`Insufficient FRK selected! Required: 290 kg, Selected: ${selectedFrkQuantity} kg`);
       return;
     }
 
@@ -136,8 +140,8 @@ const FCIConsignments: React.FC = () => {
     const newConsignment: FCIConsignment = {
       id: Date.now().toString(),
       ackNumber: consignmentForm.ackNumber,
-      riceQuantity: 287.1, // Pure rice quantity
-      frkQuantity: 290, // FRK quantity
+      riceQuantity: 287.1,
+      frkQuantity: 290,
       totalBags: 580,
       gunnyType: consignmentForm.gunnyType,
       stickersUsed: 580,
@@ -149,18 +153,41 @@ const FCIConsignments: React.FC = () => {
       notes: consignmentForm.notes
     };
 
-    // Update FRK stocks - deduct from selected batches
-    let remainingFrkNeeded = 290;
+    // Create lorry freight entry
+    if (consignmentForm.lorryNumber && consignmentForm.freightRate) {
+      const freightRate = parseFloat(consignmentForm.freightRate);
+      const totalFreight = 29 * freightRate; // 29 MT (290 Qtl)
+      
+      const newFreight: LorryFreight = {
+        id: Date.now().toString() + '_freight',
+        consignmentId: newConsignment.id,
+        ackNumber: consignmentForm.ackNumber,
+        lorryNumber: consignmentForm.lorryNumber,
+        transporterName: consignmentForm.transporterName,
+        quantityMT: 29,
+        freightPerMT: freightRate,
+        grossFreightAmount: totalFreight,
+        deductions: [],
+        netFreightAmount: totalFreight,
+        advancePaid: 0,
+        balanceAmount: totalFreight,
+        dispatchDate: consignmentForm.consignmentDate,
+        paymentStatus: 'pending'
+      };
+      
+      setLorryFreights(prev => [...prev, newFreight]);
+    }
+
+    // Update FRK stocks
     const updatedFrkStocks = frkStocks.map(stock => {
-      if (selectedFrkBatches.includes(stock.id) && remainingFrkNeeded > 0) {
-        const deductAmount = Math.min(stock.quantity, remainingFrkNeeded);
-        remainingFrkNeeded -= deductAmount;
-        return { ...stock, quantity: stock.quantity - deductAmount };
+      const selectedQty = selectedFrkBatches[stock.id] || 0;
+      if (selectedQty > 0) {
+        return { ...stock, quantity: stock.quantity - selectedQty };
       }
       return stock;
     });
 
-    // Update gunny stocks - deduct 580 gunnies
+    // Update gunny stocks
     let remainingGunniesNeeded = 580;
     const updatedGunnyStocks = gunnyStocks.map(stock => {
       if (stock.type === consignmentForm.gunnyType && remainingGunniesNeeded > 0) {
@@ -171,7 +198,7 @@ const FCIConsignments: React.FC = () => {
       return stock;
     });
 
-    // Update rexin stickers - deduct 580 stickers
+    // Update rexin stickers
     let remainingStickersNeeded = 580;
     const updatedRexinStickers = rexinStickers.map(sticker => {
       if (remainingStickersNeeded > 0) {
@@ -187,7 +214,7 @@ const FCIConsignments: React.FC = () => {
     });
 
     // Update all states
-    setConsignments([...consignments, newConsignment]);
+    setConsignments(prev => [...prev, newConsignment]);
     setFrkStocks(updatedFrkStocks);
     setGunnyStocks(updatedGunnyStocks);
     setRexinStickers(updatedRexinStickers);
@@ -199,77 +226,19 @@ const FCIConsignments: React.FC = () => {
       consignmentDate: '',
       lorryNumber: '',
       transporterName: '',
+      freightRate: '',
       eWayBill: '',
       notes: ''
     });
-    setSelectedFrkBatches([]);
+    setSelectedFrkBatches({});
     setShowAddForm(false);
   };
 
-  const startEdit = (consignment: FCIConsignment) => {
-    setEditingConsignment(consignment.id);
-    setEditForm({
-      ackNumber: consignment.ackNumber,
-      gunnyType: consignment.gunnyType,
-      consignmentDate: consignment.consignmentDate,
-      lorryNumber: consignment.lorryNumber || '',
-      transporterName: consignment.transporterName || '',
-      eWayBill: consignment.eWayBill || '',
-      fciWeight: consignment.fciWeight?.toString() || '',
-      fciMoisture: consignment.fciMoisture?.toString() || '',
-      fciUnloadingHamali: consignment.fciUnloadingHamali || '',
-      fciPassingFee: consignment.fciPassingFee || '',
-      passingFeePaid: consignment.passingFeePaid || false,
-      status: consignment.status,
-      notes: consignment.notes || ''
-    });
-  };
-
-  const saveEdit = (id: string) => {
-    setConsignments(consignments.map(consignment => 
-      consignment.id === id ? {
-        ...consignment,
-        ackNumber: editForm.ackNumber,
-        gunnyType: editForm.gunnyType,
-        consignmentDate: editForm.consignmentDate,
-        lorryNumber: editForm.lorryNumber,
-        transporterName: editForm.transporterName,
-        eWayBill: editForm.eWayBill,
-        fciWeight: parseFloat(editForm.fciWeight) || undefined,
-        fciMoisture: parseFloat(editForm.fciMoisture) || undefined,
-        fciUnloadingHamali: editForm.fciUnloadingHamali,
-        fciPassingFee: editForm.fciPassingFee,
-        passingFeePaid: editForm.passingFeePaid,
-        status: editForm.status,
-        notes: editForm.notes
-      } : consignment
-    ));
-    setEditingConsignment(null);
-  };
-
-  const cancelEdit = () => {
-    setEditingConsignment(null);
-  };
-
-  const getStatusColor = (status: FCIConsignment['status']) => {
-    switch (status) {
-      case 'dispatched': return 'bg-green-100 text-green-800 border-green-200';
-      case 'qc-passed': return 'bg-blue-100 text-blue-800 border-blue-200';
-      case 'dumping-done': return 'bg-purple-100 text-purple-800 border-purple-200';
-      case 'rejected': return 'bg-red-100 text-red-800 border-red-200';
-      default: return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-    }
-  };
-
-  const getStatusIcon = (status: FCIConsignment['status']) => {
-    switch (status) {
-      case 'dispatched': return <CheckCircle className="h-4 w-4" />;
-      case 'qc-passed': return <CheckCircle className="h-4 w-4" />;
-      case 'dumping-done': return <Package className="h-4 w-4" />;
-      case 'rejected': return <AlertCircle className="h-4 w-4" />;
-      default: return <Clock className="h-4 w-4" />;
-    }
-  };
+  const tabs = [
+    { id: 'consignments', label: 'FCI Consignments', icon: Truck, color: 'from-blue-500 to-blue-600' },
+    { id: 'freight', label: 'Lorry Freight', icon: Calculator, color: 'from-green-500 to-green-600' },
+    { id: 'payments', label: 'Freight Payments', icon: CreditCard, color: 'from-purple-500 to-purple-600' }
+  ];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-blue-50 to-indigo-50">
@@ -278,45 +247,46 @@ const FCIConsignments: React.FC = () => {
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">FCI Consignments</h1>
-            <p className="text-gray-600 mt-2">Manage fortified rice consignments to FCI</p>
-            <p className="text-sm text-blue-600 mt-1">Note: 1 Consignment = 287.1 Qtl Rice + 2.9 Qtl FRK = 290 Qtl Total</p>
+            <p className="text-gray-600 mt-2">Manage fortified rice consignments and freight</p>
           </div>
-          <button
-            onClick={() => setShowAddForm(true)}
-            className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-emerald-500 to-blue-600 text-white text-sm font-medium rounded-lg hover:from-emerald-600 hover:to-blue-700 transition-all duration-200 shadow-md hover:shadow-lg"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Add FCI Consignment
-          </button>
+          {activeTab === 'consignments' && (
+            <button
+              onClick={() => setShowAddForm(true)}
+              className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-emerald-500 to-blue-600 text-white text-sm font-medium rounded-lg hover:from-emerald-600 hover:to-blue-700 transition-all duration-200 shadow-md hover:shadow-lg"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Add FCI Consignment
+            </button>
+          )}
         </div>
 
         {/* Summary Stats */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
           <StatsCard
             title="Available Rice"
-            value={`${formatDecimal(availableRice)} Qtl`}
-            subtitle={`${Math.floor(availableRice / 287.1)} ACKs possible`}
+            value={`${formatDecimal(availableStocks.availableRice)} Qtl`}
+            subtitle={`${Math.floor(availableStocks.availableRice / 287.1)} ACKs possible`}
             icon={<Package className="h-6 w-6" />}
             color="from-green-500 to-green-600"
           />
           <StatsCard
             title="Available FRK"
-            value={`${formatNumber(availableFrkStock)} kg`}
-            subtitle={`${Math.floor(availableFrkStock / 290)} ACKs possible`}
+            value={`${formatNumber(availableStocks.availableFrkStock)} kg`}
+            subtitle={`${Math.floor(availableStocks.availableFrkStock / 290)} ACKs possible`}
             icon={<Package className="h-6 w-6" />}
             color="from-blue-500 to-blue-600"
           />
           <StatsCard
             title="Available Gunnies"
-            value={formatNumber(availableGunnies)}
-            subtitle={`${Math.floor(availableGunnies / 580)} ACKs possible`}
+            value={formatNumber(availableStocks.availableGunnies)}
+            subtitle={`${Math.floor(availableStocks.availableGunnies / 580)} ACKs possible`}
             icon={<Package className="h-6 w-6" />}
             color="from-purple-500 to-purple-600"
           />
           <StatsCard
             title="Available Stickers"
-            value={formatNumber(availableStickers)}
-            subtitle={`${Math.floor(availableStickers / 580)} ACKs possible`}
+            value={formatNumber(availableStocks.availableStickers)}
+            subtitle={`${Math.floor(availableStocks.availableStickers / 580)} ACKs possible`}
             icon={<Package className="h-6 w-6" />}
             color="from-orange-500 to-orange-600"
           />
@@ -329,13 +299,175 @@ const FCIConsignments: React.FC = () => {
           />
         </div>
 
+        {/* Tab Navigation */}
+        <div className="bg-white rounded-xl shadow-lg border border-gray-200 mb-8">
+          <div className="border-b border-gray-200">
+            <nav className="flex space-x-8 px-6">
+              {tabs.map((tab) => {
+                const Icon = tab.icon;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id as any)}
+                    className={`flex items-center space-x-2 py-4 px-1 border-b-2 font-medium text-sm transition-all duration-200 ${
+                      activeTab === tab.id
+                        ? 'border-blue-500 text-blue-600'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    }`}
+                  >
+                    <div className={`p-1 rounded-lg bg-gradient-to-r ${tab.color} ${activeTab === tab.id ? 'text-white' : 'text-gray-400'}`}>
+                      <Icon className="h-4 w-4" />
+                    </div>
+                    <span>{tab.label}</span>
+                  </button>
+                );
+              })}
+            </nav>
+          </div>
+
+          {/* Tab Content */}
+          <div className="p-6">
+            {activeTab === 'consignments' && (
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">FCI Consignment Records</h3>
+                {consignments.length === 0 ? (
+                  <div className="text-center py-8">
+                    <Truck className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-600">No FCI consignments yet. Create your first consignment.</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ACK Number</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quantities</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Transport</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {consignments.map((consignment) => (
+                          <tr key={consignment.id} className="hover:bg-gray-50">
+                            <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-blue-600">
+                              {consignment.ackNumber}
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-600">
+                              {new Date(consignment.consignmentDate).toLocaleDateString()}
+                            </td>
+                            <td className="px-4 py-4 text-sm text-gray-900">
+                              <div className="space-y-1">
+                                <div>Rice: <span className="font-semibold">{formatDecimal(consignment.riceQuantity)} Qtl</span></div>
+                                <div>FRK: <span className="font-semibold">{formatDecimal(consignment.frkQuantity)} kg</span></div>
+                                <div>Total: <span className="font-semibold">290.0 Qtl</span></div>
+                                <div>Bags: <span className="font-semibold">{consignment.totalBags}</span></div>
+                              </div>
+                            </td>
+                            <td className="px-4 py-4 text-sm text-gray-600">
+                              <div className="space-y-1">
+                                <div>Lorry: <span className="font-medium">{consignment.lorryNumber || '-'}</span></div>
+                                <div>Transporter: <span className="font-medium">{consignment.transporterName || '-'}</span></div>
+                              </div>
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap">
+                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${
+                                consignment.status === 'dispatched' ? 'bg-green-100 text-green-800 border-green-200' :
+                                consignment.status === 'qc-passed' ? 'bg-blue-100 text-blue-800 border-blue-200' :
+                                consignment.status === 'dumping-done' ? 'bg-purple-100 text-purple-800 border-purple-200' :
+                                consignment.status === 'rejected' ? 'bg-red-100 text-red-800 border-red-200' :
+                                'bg-yellow-100 text-yellow-800 border-yellow-200'
+                              }`}>
+                                <span className="capitalize">{consignment.status.replace('-', ' ')}</span>
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {activeTab === 'freight' && (
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Lorry Freight Records</h3>
+                {lorryFreights.length === 0 ? (
+                  <div className="text-center py-8">
+                    <Calculator className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-600">No freight records yet. Create consignments to generate freight entries.</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">S.No</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Vehicle No.</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quantity (MT)</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rate</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Freight</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Advances</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Freight Dues</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {lorryFreights.map((freight, index) => (
+                          <tr key={freight.id} className="hover:bg-gray-50">
+                            <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
+                              {index + 1}
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-600">
+                              {new Date(freight.dispatchDate).toLocaleDateString()}
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
+                              {freight.lorryNumber}
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {freight.quantityMT} MT
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {formatCurrency(freight.freightPerMT)}
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
+                              {formatCurrency(freight.grossFreightAmount)}
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap text-sm text-green-600 font-medium">
+                              {formatCurrency(freight.advancePaid)}
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap text-sm text-red-600 font-medium">
+                              {formatCurrency(freight.balanceAmount)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {activeTab === 'payments' && (
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Freight Payment Dashboard</h3>
+                <div className="text-center py-8">
+                  <CreditCard className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-600">Payment management system coming soon...</p>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* Add Consignment Form */}
         {showAddForm && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="bg-white rounded-xl shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
               <div className="p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Add FCI Consignment</h3>
-                <form onSubmit={handleConsignmentSubmit} className="space-y-4">
+                <form onSubmit={handleConsignmentSubmit} className="space-y-6">
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -346,23 +478,21 @@ const FCIConsignments: React.FC = () => {
                         value={consignmentForm.ackNumber}
                         onChange={(e) => setConsignmentForm({ ...consignmentForm, ackNumber: e.target.value })}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        placeholder="Enter ACK Number (e.g., ACK001, 1 ACK BOILED, etc.)"
+                        placeholder="Enter ACK Number"
                         required
                       />
-                      <p className="text-xs text-gray-500 mt-1">Enter any ACK number you generated online</p>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Gunny Type
+                        Consignment Date
                       </label>
-                      <select
-                        value={consignmentForm.gunnyType}
-                        onChange={(e) => setConsignmentForm({ ...consignmentForm, gunnyType: e.target.value as any })}
+                      <input
+                        type="date"
+                        value={consignmentForm.consignmentDate}
+                        onChange={(e) => setConsignmentForm({ ...consignmentForm, consignmentDate: e.target.value })}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      >
-                        <option value="2024-25-new">2024-25 New Gunnies</option>
-                        <option value="2023-24-leftover">2023-24 Leftover Gunnies</option>
-                      </select>
+                        required
+                      />
                     </div>
                   </div>
 
@@ -396,27 +526,29 @@ const FCIConsignments: React.FC = () => {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        E-Way Bill (Optional)
+                        Freight Rate (₹ per MT)
                       </label>
                       <input
-                        type="text"
-                        value={consignmentForm.eWayBill}
-                        onChange={(e) => setConsignmentForm({ ...consignmentForm, eWayBill: e.target.value })}
+                        type="number"
+                        step="0.01"
+                        value={consignmentForm.freightRate}
+                        onChange={(e) => setConsignmentForm({ ...consignmentForm, freightRate: e.target.value })}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        placeholder="Enter e-way bill number"
+                        placeholder="Enter rate per MT"
                       />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Consignment Date
+                        Gunny Type
                       </label>
-                      <input
-                        type="date"
-                        value={consignmentForm.consignmentDate}
-                        onChange={(e) => setConsignmentForm({ ...consignmentForm, consignmentDate: e.target.value })}
+                      <select
+                        value={consignmentForm.gunnyType}
+                        onChange={(e) => setConsignmentForm({ ...consignmentForm, gunnyType: e.target.value as any })}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        required
-                      />
+                      >
+                        <option value="2024-25-new">2024-25 New Gunnies</option>
+                        <option value="2023-24-leftover">2023-24 Leftover Gunnies</option>
+                      </select>
                     </div>
                   </div>
 
@@ -425,33 +557,40 @@ const FCIConsignments: React.FC = () => {
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Select FRK Batches (Required: 290 kg)
                     </label>
-                    <div className="bg-gray-50 p-4 rounded-lg max-h-40 overflow-y-auto">
-                      {getAvailableFrkBatches().map((batch) => (
-                        <div key={batch.id} className="flex items-center space-x-3 mb-2">
-                          <input
-                            type="checkbox"
-                            id={`frk-${batch.id}`}
-                            checked={selectedFrkBatches.includes(batch.id)}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setSelectedFrkBatches([...selectedFrkBatches, batch.id]);
-                              } else {
-                                setSelectedFrkBatches(selectedFrkBatches.filter(id => id !== batch.id));
-                              }
-                            }}
-                            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                          />
-                          <label htmlFor={`frk-${batch.id}`} className="text-sm text-gray-700 flex-1">
-                            <span className="font-medium">{batch.batchNumber}</span> - 
-                            <span className="text-green-600"> {batch.availableQty} kg available</span> - 
-                            <span className="text-gray-500">{batch.supplier}</span>
-                          </label>
+                    <div className="bg-gray-50 p-4 rounded-lg max-h-60 overflow-y-auto">
+                      {availableFrkBatches.length === 0 ? (
+                        <p className="text-gray-500 text-center py-4">No FRK batches available</p>
+                      ) : (
+                        <div className="space-y-3">
+                          {availableFrkBatches.map((batch) => (
+                            <div key={batch.id} className="flex items-center space-x-3 p-3 bg-white rounded-lg border">
+                              <div className="flex-1">
+                                <div className="font-medium text-gray-900">{batch.batchNumber}</div>
+                                <div className="text-sm text-gray-600">{batch.supplier}</div>
+                                <div className="text-sm text-green-600">Available: {batch.availableQty} kg</div>
+                              </div>
+                              <div className="flex items-center space-x-2">
+                                <input
+                                  type="number"
+                                  min="0"
+                                  max={batch.availableQty}
+                                  value={selectedFrkBatches[batch.id] || 0}
+                                  onChange={(e) => handleFrkBatchSelection(batch.id, parseInt(e.target.value) || 0)}
+                                  className="w-20 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
+                                  placeholder="0"
+                                />
+                                <span className="text-sm text-gray-500">kg</span>
+                              </div>
+                            </div>
+                          ))}
                         </div>
-                      ))}
+                      )}
                     </div>
-                    <p className="text-xs text-gray-600 mt-1">
-                      Selected: {getSelectedFrkQuantity()} kg / 290 kg required
-                    </p>
+                    <div className="mt-2 text-sm">
+                      <span className={`font-medium ${selectedFrkQuantity >= 290 ? 'text-green-600' : 'text-red-600'}`}>
+                        Selected: {selectedFrkQuantity} kg / 290 kg required
+                      </span>
+                    </div>
                   </div>
 
                   <div className="bg-blue-50 p-4 rounded-lg">
@@ -473,34 +612,23 @@ const FCIConsignments: React.FC = () => {
                         <span>Gunnies Required:</span>
                         <span className="font-semibold">580 bags</span>
                       </div>
-                      <div className="flex justify-between">
-                        <span>Stickers Required:</span>
-                        <span className="font-semibold">580 stickers</span>
-                      </div>
+                      {consignmentForm.freightRate && (
+                        <div className="flex justify-between border-t pt-1 mt-1">
+                          <span>Freight Amount:</span>
+                          <span className="font-semibold">{formatCurrency(29 * parseFloat(consignmentForm.freightRate || '0'))}</span>
+                        </div>
+                      )}
                     </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Notes
-                    </label>
-                    <textarea
-                      value={consignmentForm.notes}
-                      onChange={(e) => setConsignmentForm({ ...consignmentForm, notes: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      rows={3}
-                      placeholder="Optional notes about this consignment..."
-                    />
                   </div>
 
                   <div className="flex space-x-3 pt-4">
                     <button
                       type="submit"
                       disabled={
-                        availableRice < 287.1 || 
-                        availableGunnies < 580 || 
-                        availableStickers < 580 ||
-                        getSelectedFrkQuantity() < 290
+                        availableStocks.availableRice < 287.1 || 
+                        availableStocks.availableGunnies < 580 || 
+                        availableStocks.availableStickers < 580 ||
+                        selectedFrkQuantity < 290
                       }
                       className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed"
                     >
@@ -519,174 +647,6 @@ const FCIConsignments: React.FC = () => {
             </div>
           </div>
         )}
-
-        {/* Consignments Table */}
-        <div className="bg-white rounded-xl shadow-lg border border-gray-200">
-          <div className="p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">FCI Consignment Records</h3>
-            {consignments.length === 0 ? (
-              <div className="text-center py-8">
-                <Truck className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-600">No FCI consignments yet. Create your first consignment.</p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ACK Number</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quantities</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Transport</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">FCI Details</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200">
-                    {consignments.map((consignment) => (
-                      <tr key={consignment.id} className="hover:bg-gray-50">
-                        <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-blue-600">
-                          {editingConsignment === consignment.id ? (
-                            <input
-                              type="text"
-                              value={editForm.ackNumber}
-                              onChange={(e) => setEditForm({ ...editForm, ackNumber: e.target.value })}
-                              className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
-                            />
-                          ) : (
-                            consignment.ackNumber
-                          )}
-                        </td>
-                        <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-600">
-                          {editingConsignment === consignment.id ? (
-                            <input
-                              type="date"
-                              value={editForm.consignmentDate}
-                              onChange={(e) => setEditForm({ ...editForm, consignmentDate: e.target.value })}
-                              className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
-                            />
-                          ) : (
-                            new Date(consignment.consignmentDate).toLocaleDateString()
-                          )}
-                        </td>
-                        <td className="px-4 py-4 text-sm text-gray-900">
-                          <div className="space-y-1">
-                            <div>Rice: <span className="font-semibold">{formatDecimal(consignment.riceQuantity)} Qtl</span></div>
-                            <div>FRK: <span className="font-semibold">{formatDecimal(consignment.frkQuantity)} kg</span></div>
-                            <div>Total: <span className="font-semibold">290.0 Qtl</span></div>
-                            <div>Bags: <span className="font-semibold">{consignment.totalBags}</span></div>
-                          </div>
-                        </td>
-                        <td className="px-4 py-4 text-sm text-gray-600">
-                          {editingConsignment === consignment.id ? (
-                            <div className="space-y-1">
-                              <input
-                                type="text"
-                                value={editForm.lorryNumber}
-                                onChange={(e) => setEditForm({ ...editForm, lorryNumber: e.target.value })}
-                                className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
-                                placeholder="Lorry Number"
-                              />
-                              <input
-                                type="text"
-                                value={editForm.transporterName}
-                                onChange={(e) => setEditForm({ ...editForm, transporterName: e.target.value })}
-                                className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
-                                placeholder="Transporter"
-                              />
-                            </div>
-                          ) : (
-                            <div className="space-y-1">
-                              <div>Lorry: <span className="font-medium">{consignment.lorryNumber || '-'}</span></div>
-                              <div>Transporter: <span className="font-medium">{consignment.transporterName || '-'}</span></div>
-                              <div>E-Way: <span className="font-medium">{consignment.eWayBill || '-'}</span></div>
-                            </div>
-                          )}
-                        </td>
-                        <td className="px-4 py-4 whitespace-nowrap">
-                          {editingConsignment === consignment.id ? (
-                            <select
-                              value={editForm.status}
-                              onChange={(e) => setEditForm({ ...editForm, status: e.target.value as any })}
-                              className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
-                            >
-                              <option value="in-transit">In Transit</option>
-                              <option value="dumping-done">Dumping Done</option>
-                              <option value="qc-passed">QC Passed</option>
-                              <option value="rejected">Rejected</option>
-                              <option value="dispatched">Dispatched</option>
-                            </select>
-                          ) : (
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(consignment.status)}`}>
-                              {getStatusIcon(consignment.status)}
-                              <span className="ml-1 capitalize">{consignment.status.replace('-', ' ')}</span>
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-4 py-4 text-sm text-gray-600">
-                          {editingConsignment === consignment.id ? (
-                            <div className="space-y-1">
-                              <input
-                                type="number"
-                                step="0.01"
-                                value={editForm.fciWeight}
-                                onChange={(e) => setEditForm({ ...editForm, fciWeight: e.target.value })}
-                                className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
-                                placeholder="FCI Weight"
-                              />
-                              <input
-                                type="number"
-                                step="0.1"
-                                value={editForm.fciMoisture}
-                                onChange={(e) => setEditForm({ ...editForm, fciMoisture: e.target.value })}
-                                className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
-                                placeholder="Moisture %"
-                              />
-                            </div>
-                          ) : (
-                            <div className="space-y-1">
-                              <div>Weight: <span className="font-medium">{consignment.fciWeight ? `${consignment.fciWeight} Qtl` : '-'}</span></div>
-                              <div>Moisture: <span className="font-medium">{consignment.fciMoisture ? `${consignment.fciMoisture}%` : '-'}</span></div>
-                              <div>Passing Fee: <span className="font-medium">{consignment.passingFeePaid ? '✓ Paid' : 'Pending'}</span></div>
-                            </div>
-                          )}
-                        </td>
-                        <td className="px-4 py-4 whitespace-nowrap text-sm">
-                          <div className="flex space-x-2">
-                            {editingConsignment === consignment.id ? (
-                              <>
-                                <button
-                                  onClick={() => saveEdit(consignment.id)}
-                                  className="text-green-600 hover:text-green-800"
-                                >
-                                  <Save className="h-4 w-4" />
-                                </button>
-                                <button
-                                  onClick={cancelEdit}
-                                  className="text-red-600 hover:text-red-800"
-                                >
-                                  <X className="h-4 w-4" />
-                                </button>
-                              </>
-                            ) : (
-                              <button
-                                onClick={() => startEdit(consignment)}
-                                className="text-blue-600 hover:text-blue-800"
-                              >
-                                <Edit className="h-4 w-4" />
-                              </button>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        </div>
       </div>
     </div>
   );

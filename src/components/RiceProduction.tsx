@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Factory, TrendingUp, Package, AlertCircle } from 'lucide-react';
+import { Plus, Factory, TrendingUp, Package, AlertCircle, Edit, Save, X } from 'lucide-react';
 import { RiceProduction as RiceProductionType } from '../types';
 import { paddyData } from '../data/paddyData';
 import { formatNumber, formatDecimal, formatWeight } from '../utils/calculations';
@@ -9,7 +9,15 @@ import StatsCard from './StatsCard';
 const RiceProduction: React.FC = () => {
   const [productions, setProductions] = useState<RiceProductionType[]>([]);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [editingProduction, setEditingProduction] = useState<string | null>(null);
   const [formData, setFormData] = useState({
+    ackQuantity: '1',
+    riceType: 'boiled' as 'boiled' | 'raw',
+    productionDate: '',
+    notes: ''
+  });
+
+  const [editForm, setEditForm] = useState({
     ackQuantity: '1',
     riceType: 'boiled' as 'boiled' | 'raw',
     productionDate: '',
@@ -18,16 +26,15 @@ const RiceProduction: React.FC = () => {
 
   // Load data on component mount
   useEffect(() => {
-    console.log('Loading rice productions...');
     const loadedProductions = loadRiceProductions();
-    console.log('Loaded rice productions:', loadedProductions);
     setProductions(loadedProductions);
   }, []);
 
   // Auto-save data when state changes
   useEffect(() => {
-    console.log('Saving rice productions:', productions);
-    saveRiceProductions(productions);
+    if (productions.length > 0) {
+      saveRiceProductions(productions);
+    }
   }, [productions]);
 
   // Calculate available paddy from paddy data
@@ -36,23 +43,17 @@ const RiceProduction: React.FC = () => {
   const remainingPaddy = totalPaddyReceived - usedPaddy;
 
   const totalRiceProduced = productions.reduce((sum, prod) => sum + prod.riceProduced, 0);
-  const totalMillersDue = productions.reduce((sum, prod) => sum + prod.millersDue, 0);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    console.log('Submitting rice production form:', formData);
-    
     const ackQuantity = parseInt(formData.ackQuantity);
-    
-    // Corrected calculation: 1 ACK = 287.1 Qtl of Rice (not 290)
     const ricePerAck = 287.1; // 287.1 quintals per ACK (pure rice)
     const totalRiceQuantity = ackQuantity * ricePerAck;
     
     // Calculate paddy required based on rice type
     const outturnRate = formData.riceType === 'boiled' ? 0.68 : 0.67; // 68% for boiled, 67% for raw
     const paddyRequired = totalRiceQuantity / outturnRate;
-    const millersDue = paddyRequired * 0.01; // 1% of paddy weight
 
     if (paddyRequired > remainingPaddy) {
       alert(`Insufficient paddy! Required: ${formatDecimal(paddyRequired)} Qtl, Available: ${formatDecimal(remainingPaddy)} Qtl`);
@@ -65,13 +66,12 @@ const RiceProduction: React.FC = () => {
       riceType: formData.riceType,
       paddyUsed: paddyRequired,
       riceProduced: totalRiceQuantity, // This is 287.1 Qtl per ACK
-      millersDue,
+      millersDue: 0, // Removed as requested
       productionDate: formData.productionDate,
       millName: 'Surya Industries',
       notes: formData.notes
     };
 
-    console.log('Creating new rice production:', newProduction);
     const updatedProductions = [...productions, newProduction];
     setProductions(updatedProductions);
 
@@ -79,12 +79,48 @@ const RiceProduction: React.FC = () => {
     setShowAddForm(false);
   };
 
+  const startEdit = (production: RiceProductionType) => {
+    setEditingProduction(production.id);
+    const ackQuantity = production.ackNumber.includes('ACK') ? production.ackNumber.split(' ')[0] : '1';
+    setEditForm({
+      ackQuantity,
+      riceType: production.riceType,
+      productionDate: production.productionDate,
+      notes: production.notes || ''
+    });
+  };
+
+  const saveEdit = (id: string) => {
+    const ackQuantity = parseInt(editForm.ackQuantity);
+    const ricePerAck = 287.1;
+    const totalRiceQuantity = ackQuantity * ricePerAck;
+    const outturnRate = editForm.riceType === 'boiled' ? 0.68 : 0.67;
+    const paddyRequired = totalRiceQuantity / outturnRate;
+
+    setProductions(productions.map(production => 
+      production.id === id ? {
+        ...production,
+        ackNumber: `${ackQuantity} ACK ${editForm.riceType.toUpperCase()}`,
+        riceType: editForm.riceType,
+        paddyUsed: paddyRequired,
+        riceProduced: totalRiceQuantity,
+        productionDate: editForm.productionDate,
+        notes: editForm.notes
+      } : production
+    ));
+    setEditingProduction(null);
+  };
+
+  const cancelEdit = () => {
+    setEditingProduction(null);
+    setEditForm({ ackQuantity: '1', riceType: 'boiled', productionDate: '', notes: '' });
+  };
+
   // Calculate paddy requirement for current form values
   const currentAckQuantity = parseInt(formData.ackQuantity) || 1;
-  const currentRiceQuantity = currentAckQuantity * 287.1; // Corrected to 287.1 Qtl per ACK
+  const currentRiceQuantity = currentAckQuantity * 287.1;
   const currentOutturnRate = formData.riceType === 'boiled' ? 0.68 : 0.67;
   const currentPaddyRequired = currentRiceQuantity / currentOutturnRate;
-  const currentMillersDue = currentPaddyRequired * 0.01;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-blue-50 to-indigo-50">
@@ -122,13 +158,6 @@ const RiceProduction: React.FC = () => {
             color="from-emerald-500 to-emerald-600"
           />
           <StatsCard
-            title="Millers Due"
-            value={formatWeight(totalMillersDue)}
-            subtitle="1% of paddy weight"
-            icon={<TrendingUp className="h-6 w-6" />}
-            color="from-purple-500 to-purple-600"
-          />
-          <StatsCard
             title="Total ACKs"
             value={formatNumber(productions.reduce((sum, prod) => {
               const ackCount = prod.ackNumber.includes('ACK') ? parseInt(prod.ackNumber.split(' ')[0]) : 1;
@@ -137,6 +166,13 @@ const RiceProduction: React.FC = () => {
             subtitle={`${productions.length} production batches`}
             icon={<AlertCircle className="h-6 w-6" />}
             color="from-orange-500 to-orange-600"
+          />
+          <StatsCard
+            title="Conversion Rate"
+            value={`${Math.round((totalRiceProduced / usedPaddy) * 100) || 0}%`}
+            subtitle="Paddy to Rice"
+            icon={<TrendingUp className="h-6 w-6" />}
+            color="from-purple-500 to-purple-600"
           />
         </div>
 
@@ -191,10 +227,6 @@ const RiceProduction: React.FC = () => {
                       <div className="flex justify-between">
                         <span>Paddy Required:</span>
                         <span className="font-semibold">{formatDecimal(currentPaddyRequired, 2)} Qtl</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Millers Due:</span>
-                        <span className="font-semibold">{formatDecimal(currentMillersDue, 2)} Qtl</span>
                       </div>
                       <div className="border-t pt-2 mt-2">
                         <div className="flex justify-between">
@@ -271,25 +303,54 @@ const RiceProduction: React.FC = () => {
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rice Type</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Paddy Used</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rice Produced</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Millers Due</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Notes</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
                     {productions.map((production) => (
                       <tr key={production.id} className="hover:bg-gray-50">
                         <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-blue-600">
-                          {production.ackNumber}
+                          {editingProduction === production.id ? (
+                            <input
+                              type="text"
+                              value={`${editForm.ackQuantity} ACK ${editForm.riceType.toUpperCase()}`}
+                              className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
+                              readOnly
+                            />
+                          ) : (
+                            production.ackNumber
+                          )}
                         </td>
                         <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {new Date(production.productionDate).toLocaleDateString()}
+                          {editingProduction === production.id ? (
+                            <input
+                              type="date"
+                              value={editForm.productionDate}
+                              onChange={(e) => setEditForm({ ...editForm, productionDate: e.target.value })}
+                              className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
+                            />
+                          ) : (
+                            new Date(production.productionDate).toLocaleDateString()
+                          )}
                         </td>
                         <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            production.riceType === 'boiled' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'
-                          }`}>
-                            {production.riceType === 'boiled' ? 'Boiled Rice' : 'Raw Rice'}
-                          </span>
+                          {editingProduction === production.id ? (
+                            <select
+                              value={editForm.riceType}
+                              onChange={(e) => setEditForm({ ...editForm, riceType: e.target.value as 'boiled' | 'raw' })}
+                              className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
+                            >
+                              <option value="boiled">Boiled Rice</option>
+                              <option value="raw">Raw Rice</option>
+                            </select>
+                          ) : (
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                              production.riceType === 'boiled' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'
+                            }`}>
+                              {production.riceType === 'boiled' ? 'Boiled Rice' : 'Raw Rice'}
+                            </span>
+                          )}
                         </td>
                         <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
                           {formatDecimal(production.paddyUsed, 2)} Qtl
@@ -297,11 +358,44 @@ const RiceProduction: React.FC = () => {
                         <td className="px-4 py-4 whitespace-nowrap text-sm text-green-600 font-medium">
                           {formatDecimal(production.riceProduced, 2)} Qtl
                         </td>
-                        <td className="px-4 py-4 whitespace-nowrap text-sm text-orange-600 font-medium">
-                          {formatDecimal(production.millersDue, 2)} Qtl
+                        <td className="px-4 py-4 text-sm text-gray-600 max-w-xs">
+                          {editingProduction === production.id ? (
+                            <textarea
+                              value={editForm.notes}
+                              onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
+                              className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
+                              rows={2}
+                            />
+                          ) : (
+                            <div className="truncate">{production.notes || '-'}</div>
+                          )}
                         </td>
-                        <td className="px-4 py-4 text-sm text-gray-600 max-w-xs truncate">
-                          {production.notes || '-'}
+                        <td className="px-4 py-4 whitespace-nowrap text-sm">
+                          <div className="flex space-x-2">
+                            {editingProduction === production.id ? (
+                              <>
+                                <button
+                                  onClick={() => saveEdit(production.id)}
+                                  className="text-green-600 hover:text-green-800"
+                                >
+                                  <Save className="h-4 w-4" />
+                                </button>
+                                <button
+                                  onClick={cancelEdit}
+                                  className="text-red-600 hover:text-red-800"
+                                >
+                                  <X className="h-4 w-4" />
+                                </button>
+                              </>
+                            ) : (
+                              <button
+                                onClick={() => startEdit(production)}
+                                className="text-blue-600 hover:text-blue-800"
+                              >
+                                <Edit className="h-4 w-4" />
+                              </button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))}
