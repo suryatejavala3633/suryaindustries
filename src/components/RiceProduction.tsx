@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Plus, Factory, TrendingUp, Package, AlertCircle } from 'lucide-react';
 import { RiceProduction as RiceProductionType } from '../types';
 import { paddyData } from '../data/paddyData';
-import { formatNumber } from '../utils/calculations';
+import { formatNumber, formatDecimal } from '../utils/calculations';
 import { saveRiceProductions, loadRiceProductions } from '../utils/dataStorage';
 import StatsCard from './StatsCard';
 
@@ -26,10 +26,8 @@ const RiceProduction: React.FC = () => {
 
   // Auto-save data when state changes
   useEffect(() => {
-    if (productions.length > 0) {
-      console.log('Saving rice productions:', productions);
-      saveRiceProductions(productions);
-    }
+    console.log('Saving rice productions:', productions);
+    saveRiceProductions(productions);
   }, [productions]);
 
   // Calculate available paddy from paddy data
@@ -46,7 +44,9 @@ const RiceProduction: React.FC = () => {
     console.log('Submitting rice production form:', formData);
     
     const ackQuantity = parseInt(formData.ackQuantity);
-    const ricePerAck = 290; // 290 quintals per ACK
+    
+    // Corrected calculation: 1 ACK = 287.1 Qtl of Rice (not 290)
+    const ricePerAck = 287.1; // 287.1 quintals per ACK (pure rice)
     const totalRiceQuantity = ackQuantity * ricePerAck;
     
     // Calculate paddy required based on rice type
@@ -55,7 +55,7 @@ const RiceProduction: React.FC = () => {
     const millersDue = paddyRequired * 0.01; // 1% of paddy weight
 
     if (paddyRequired > remainingPaddy) {
-      alert(`Insufficient paddy! Required: ${formatNumber(Math.round(paddyRequired))} Qtl, Available: ${formatNumber(Math.round(remainingPaddy))} Qtl`);
+      alert(`Insufficient paddy! Required: ${formatDecimal(paddyRequired)} Qtl, Available: ${formatDecimal(remainingPaddy)} Qtl`);
       return;
     }
 
@@ -64,7 +64,7 @@ const RiceProduction: React.FC = () => {
       ackNumber: `${ackQuantity} ACK ${formData.riceType.toUpperCase()}`,
       riceType: formData.riceType,
       paddyUsed: paddyRequired,
-      riceProduced: totalRiceQuantity,
+      riceProduced: totalRiceQuantity, // This is 287.1 Qtl per ACK
       millersDue,
       productionDate: formData.productionDate,
       millName: 'Surya Industries',
@@ -74,9 +74,6 @@ const RiceProduction: React.FC = () => {
     console.log('Creating new rice production:', newProduction);
     const updatedProductions = [...productions, newProduction];
     setProductions(updatedProductions);
-    
-    // Force save immediately
-    saveRiceProductions(updatedProductions);
 
     setFormData({ ackQuantity: '1', riceType: 'boiled', productionDate: '', notes: '' });
     setShowAddForm(false);
@@ -84,7 +81,7 @@ const RiceProduction: React.FC = () => {
 
   // Calculate paddy requirement for current form values
   const currentAckQuantity = parseInt(formData.ackQuantity) || 1;
-  const currentRiceQuantity = currentAckQuantity * 290;
+  const currentRiceQuantity = currentAckQuantity * 287.1; // Corrected to 287.1 Qtl per ACK
   const currentOutturnRate = formData.riceType === 'boiled' ? 0.68 : 0.67;
   const currentPaddyRequired = currentRiceQuantity / currentOutturnRate;
   const currentMillersDue = currentPaddyRequired * 0.01;
@@ -97,6 +94,7 @@ const RiceProduction: React.FC = () => {
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Rice Production</h1>
             <p className="text-gray-600 mt-2">Track paddy to rice conversion and production records - Surya Industries</p>
+            <p className="text-sm text-blue-600 mt-1">Note: 1 ACK = 287.1 Qtl Rice (pure rice, before FRK mixing)</p>
           </div>
           <button
             onClick={() => setShowAddForm(true)}
@@ -111,21 +109,21 @@ const RiceProduction: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <StatsCard
             title="Available Paddy"
-            value={`${formatNumber(Math.round(remainingPaddy))} Qtl`}
-            subtitle={`Used: ${formatNumber(Math.round(usedPaddy))} Qtl`}
+            value={`${formatDecimal(remainingPaddy)} Qtl`}
+            subtitle={`Used: ${formatDecimal(usedPaddy)} Qtl`}
             icon={<Package className="h-6 w-6" />}
             color="from-blue-500 to-blue-600"
           />
           <StatsCard
             title="Rice Produced"
-            value={`${formatNumber(Math.round(totalRiceProduced))} Qtl`}
-            subtitle="290 Qtl per ACK"
+            value={`${formatDecimal(totalRiceProduced)} Qtl`}
+            subtitle="287.1 Qtl per ACK"
             icon={<Factory className="h-6 w-6" />}
             color="from-emerald-500 to-emerald-600"
           />
           <StatsCard
             title="Millers Due"
-            value={`${formatNumber(Math.round(totalMillersDue))} Qtl`}
+            value={`${formatDecimal(totalMillersDue)} Qtl`}
             subtitle="1% of paddy weight"
             icon={<TrendingUp className="h-6 w-6" />}
             color="from-purple-500 to-purple-600"
@@ -163,7 +161,7 @@ const RiceProduction: React.FC = () => {
                       required
                     />
                     <p className="text-xs text-gray-500 mt-1">
-                      Each ACK = 290 Quintals of Fortified Rice
+                      Each ACK = 287.1 Quintals of Rice (pure rice)
                     </p>
                   </div>
                   <div>
@@ -188,21 +186,21 @@ const RiceProduction: React.FC = () => {
                       </div>
                       <div className="flex justify-between">
                         <span>Rice Output:</span>
-                        <span className="font-semibold">{formatNumber(currentRiceQuantity)} Qtl</span>
+                        <span className="font-semibold">{formatDecimal(currentRiceQuantity)} Qtl</span>
                       </div>
                       <div className="flex justify-between">
                         <span>Paddy Required:</span>
-                        <span className="font-semibold">{formatNumber(Math.round(currentPaddyRequired))} Qtl</span>
+                        <span className="font-semibold">{formatDecimal(currentPaddyRequired)} Qtl</span>
                       </div>
                       <div className="flex justify-between">
                         <span>Millers Due:</span>
-                        <span className="font-semibold">{formatNumber(Math.round(currentMillersDue))} Qtl</span>
+                        <span className="font-semibold">{formatDecimal(currentMillersDue)} Qtl</span>
                       </div>
                       <div className="border-t pt-2 mt-2">
                         <div className="flex justify-between">
                           <span>Available Paddy:</span>
                           <span className={`font-semibold ${currentPaddyRequired > remainingPaddy ? 'text-red-600' : 'text-green-600'}`}>
-                            {formatNumber(Math.round(remainingPaddy))} Qtl
+                            {formatDecimal(remainingPaddy)} Qtl
                           </span>
                         </div>
                       </div>
@@ -294,13 +292,13 @@ const RiceProduction: React.FC = () => {
                           </span>
                         </td>
                         <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {formatNumber(Math.round(production.paddyUsed))} Qtl
+                          {formatDecimal(production.paddyUsed)} Qtl
                         </td>
                         <td className="px-4 py-4 whitespace-nowrap text-sm text-green-600 font-medium">
-                          {formatNumber(production.riceProduced)} Qtl
+                          {formatDecimal(production.riceProduced)} Qtl
                         </td>
                         <td className="px-4 py-4 whitespace-nowrap text-sm text-orange-600 font-medium">
-                          {formatNumber(Math.round(production.millersDue))} Qtl
+                          {formatDecimal(production.millersDue)} Qtl
                         </td>
                         <td className="px-4 py-4 text-sm text-gray-600 max-w-xs truncate">
                           {production.notes || '-'}
