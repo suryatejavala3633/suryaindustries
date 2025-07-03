@@ -340,3 +340,110 @@ export interface ElectricityBill {
   paymentMethod: 'cash' | 'cheque' | 'bank-transfer' | 'upi';
   notes?: string;
 }
+
+// New Payables and Receivables Types
+export interface Purchase {
+  id: string;
+  billNumber: string;
+  billDate: string;
+  vendorName: string;
+  vendorGST?: string;
+  vendorAddress?: string;
+  vendorPhone?: string;
+  items: PurchaseItem[];
+  subtotal: number;
+  gstAmount: number;
+  totalAmount: number;
+  paidAmount: number;
+  balanceAmount: number;
+  paymentStatus: 'pending' | 'partial' | 'paid';
+  paymentTerms: number; // days
+  dueDate: string;
+  billDocument?: string; // base64 image/pdf
+  category: 'gst' | 'cash';
+  notes?: string;
+}
+
+export interface PurchaseItem {
+  id: string;
+  itemName: string;
+  description?: string;
+  quantity: number;
+  unit: string;
+  rate: number;
+  gstRate: number;
+  amount: number;
+  gstAmount: number;
+  totalAmount: number;
+}
+
+export interface PurchasePayment {
+  id: string;
+  purchaseId: string;
+  vendorName: string;
+  amount: number;
+  paymentDate: string;
+  paymentMethod: 'cash' | 'cheque' | 'bank-transfer' | 'upi' | 'other';
+  referenceNumber?: string;
+  description?: string;
+  notes?: string;
+}
+
+export interface SalesRecord {
+  id: string;
+  invoiceNumber: string;
+  invoiceDate: string;
+  partyName: string;
+  partyGST?: string;
+  partyAddress?: string;
+  partyPhone?: string;
+  lorryNumber?: string;
+  items: SalesItem[];
+  subtotal: number;
+  gstAmount: number;
+  totalAmount: number;
+  paidAmount: number;
+  balanceAmount: number;
+  paymentStatus: 'pending' | 'partial' | 'paid';
+  paymentTerms: number; // days
+  dueDate: string;
+  notes?: string;
+}
+
+export interface SalesItem {
+  id: string;
+  itemName: string;
+  description?: string;
+  quantity: number;
+  unit: string;
+  rate: number;
+  gstRate: number;
+  amount: number;
+  gstAmount: number;
+  totalAmount: number;
+}
+
+export interface SalesPayment {
+  id: string;
+  salesId: string;
+  partyName: string;
+  amount: number;
+  paymentDate: string;
+  paymentMethod: 'cash' | 'cheque' | 'bank-transfer' | 'upi' | 'other';
+  referenceNumber?: string;
+  description?: string;
+  notes?: string;
+}
+
+export interface Vendor {
+  id: string;
+  name: string;
+  address: string;
+  phone: string;
+  email?: string;
+  gstNumber?: string;
+  panNumber?: string;
+  paymentTerms: number; // days
+  createdDate: string;
+  notes?: string;
+}
