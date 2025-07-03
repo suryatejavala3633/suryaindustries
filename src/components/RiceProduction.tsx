@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Factory, TrendingUp, Package, AlertCircle, Edit, Save, X } from 'lucide-react';
+import { Plus, Factory, TrendingUp, Package, AlertCircle, Edit, Save, X, Trash2 } from 'lucide-react';
 import { RiceProduction as RiceProductionType } from '../types';
 import { paddyData } from '../data/paddyData';
 import { formatNumber, formatDecimal, formatWeight } from '../utils/calculations';
@@ -10,6 +10,7 @@ const RiceProduction: React.FC = () => {
   const [productions, setProductions] = useState<RiceProductionType[]>([]);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingProduction, setEditingProduction] = useState<string | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     ackQuantity: '1',
     riceType: 'boiled' as 'boiled' | 'raw',
@@ -114,6 +115,11 @@ const RiceProduction: React.FC = () => {
   const cancelEdit = () => {
     setEditingProduction(null);
     setEditForm({ ackQuantity: '1', riceType: 'boiled', productionDate: '', notes: '' });
+  };
+
+  const deleteProduction = (id: string) => {
+    setProductions(productions.filter(production => production.id !== id));
+    setShowDeleteConfirm(null);
   };
 
   // Calculate paddy requirement for current form values
@@ -377,23 +383,35 @@ const RiceProduction: React.FC = () => {
                                 <button
                                   onClick={() => saveEdit(production.id)}
                                   className="text-green-600 hover:text-green-800"
+                                  title="Save changes"
                                 >
                                   <Save className="h-4 w-4" />
                                 </button>
                                 <button
                                   onClick={cancelEdit}
                                   className="text-red-600 hover:text-red-800"
+                                  title="Cancel editing"
                                 >
                                   <X className="h-4 w-4" />
                                 </button>
                               </>
                             ) : (
-                              <button
-                                onClick={() => startEdit(production)}
-                                className="text-blue-600 hover:text-blue-800"
-                              >
-                                <Edit className="h-4 w-4" />
-                              </button>
+                              <>
+                                <button
+                                  onClick={() => startEdit(production)}
+                                  className="text-blue-600 hover:text-blue-800"
+                                  title="Edit production"
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </button>
+                                <button
+                                  onClick={() => setShowDeleteConfirm(production.id)}
+                                  className="text-red-600 hover:text-red-800"
+                                  title="Delete production"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
+                              </>
                             )}
                           </div>
                         </td>
@@ -405,6 +423,34 @@ const RiceProduction: React.FC = () => {
             )}
           </div>
         </div>
+
+        {/* Delete Confirmation Modal */}
+        {showDeleteConfirm && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-xl shadow-xl max-w-md w-full mx-4">
+              <div className="p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Confirm Delete</h3>
+                <p className="text-gray-600 mb-6">
+                  Are you sure you want to delete this production record? This action cannot be undone.
+                </p>
+                <div className="flex space-x-3">
+                  <button
+                    onClick={() => deleteProduction(showDeleteConfirm)}
+                    className="flex-1 bg-red-600 text-white py-2 px-4 rounded-lg hover:bg-red-700 transition-colors duration-200"
+                  >
+                    Delete
+                  </button>
+                  <button
+                    onClick={() => setShowDeleteConfirm(null)}
+                    className="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-400 transition-colors duration-200"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
