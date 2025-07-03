@@ -1,5 +1,5 @@
 import React from 'react';
-import { Factory, Package, Truck, Sticker, TrendingUp, Users, Zap, FileCheck, ArrowRight, Phone, Mail, MapPin, Award, Shield, Clock } from 'lucide-react';
+import { Factory, Package, Truck, Sticker, TrendingUp, Users, Zap, FileCheck, ArrowRight, Phone, Mail, MapPin, Award, Shield, Clock, CreditCard } from 'lucide-react';
 
 interface LandingPageProps {
   onNavigate: (tab: string) => void;
@@ -8,36 +8,26 @@ interface LandingPageProps {
 const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
   const modules = [
     {
-      id: 'paddy',
-      title: 'Paddy Dashboard',
-      description: 'Track paddy receipts, reconciliation and unloading operations',
-      icon: Package,
-      color: 'from-emerald-500 to-green-600',
-      features: ['Real-time tracking', 'Center reconciliation', 'Quality monitoring']
-    },
-    {
-      id: 'production',
-      title: 'Rice Production',
-      description: 'Monitor rice production, outturn rates and quality control',
+      id: 'cmr-activity',
+      title: 'CMR Activity',
+      description: 'Complete rice mill operations management',
       icon: Factory,
+      color: 'from-emerald-500 to-green-600',
+      features: ['Paddy tracking', 'Rice production', 'FCI consignments', 'Stock management'],
+      subModules: [
+        { name: 'Paddy Dashboard', desc: 'Track paddy receipts and reconciliation' },
+        { name: 'Rice Production', desc: 'Monitor production and outturn rates' },
+        { name: 'FCI Consignments', desc: 'Manage FCI deliveries and documentation' },
+        { name: 'Stock Management', desc: 'Inventory control for materials' }
+      ]
+    },
+    {
+      id: 'payables',
+      title: 'Payables & Receivables',
+      description: 'Complete financial management for purchases and sales',
+      icon: CreditCard,
       color: 'from-blue-500 to-indigo-600',
-      features: ['Production tracking', 'Quality control', 'Yield analysis']
-    },
-    {
-      id: 'fci',
-      title: 'FCI Consignments',
-      description: 'Manage FCI deliveries, documentation and freight tracking',
-      icon: Truck,
-      color: 'from-purple-500 to-violet-600',
-      features: ['Consignment tracking', 'Documentation', 'Freight management']
-    },
-    {
-      id: 'stock',
-      title: 'Stock Management',
-      description: 'Inventory control for gunnies, FRK and packaging materials',
-      icon: Sticker,
-      color: 'from-orange-500 to-red-600',
-      features: ['Inventory tracking', 'Stock alerts', 'Material planning']
+      features: ['Purchase management', 'Sales tracking', 'Outstanding amounts', 'Vendor management']
     },
     {
       id: 'salaries',
@@ -45,7 +35,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
       description: 'Payroll management for staff and daily wage workers',
       icon: Users,
       color: 'from-teal-500 to-cyan-600',
-      features: ['Payroll processing', 'Attendance tracking', 'Wage calculation']
+      features: ['Payroll processing', 'Attendance tracking', 'Wage calculation', 'Hamali management']
     },
     {
       id: 'revenue',
@@ -53,7 +43,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
       description: 'Track by-product sales, customer management and invoicing',
       icon: TrendingUp,
       color: 'from-pink-500 to-rose-600',
-      features: ['Sales tracking', 'Customer management', 'Revenue analysis']
+      features: ['Sales tracking', 'Customer management', 'Revenue analysis', 'Invoice generation']
     },
     {
       id: 'electricity',
@@ -61,7 +51,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
       description: 'Monitor power consumption, bills and cost optimization',
       icon: Zap,
       color: 'from-yellow-500 to-amber-600',
-      features: ['Consumption tracking', 'Bill management', 'Cost analysis']
+      features: ['Consumption tracking', 'Bill management', 'Cost analysis', 'Power factor monitoring']
     }
   ];
 
@@ -179,6 +169,20 @@ const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
                       </div>
                     ))}
                   </div>
+
+                  {/* Sub-modules for CMR Activity */}
+                  {module.subModules && (
+                    <div className="mt-6 pt-4 border-t border-gray-100">
+                      <h4 className="text-sm font-medium text-gray-700 mb-3">Includes:</h4>
+                      <div className="space-y-2">
+                        {module.subModules.map((subModule, index) => (
+                          <div key={index} className="text-xs text-gray-500">
+                            <span className="font-medium">{subModule.name}:</span> {subModule.desc}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             );

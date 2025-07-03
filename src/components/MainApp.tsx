@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Package, Factory, Truck, Sticker, TrendingUp, Users, Zap, Home, HardDrive } from 'lucide-react';
+import { Package, Factory, Truck, Sticker, TrendingUp, Users, Zap, Home, HardDrive, CreditCard } from 'lucide-react';
 import LandingPage from './LandingPage';
 import Dashboard from './Dashboard';
 import RiceProduction from './RiceProduction';
@@ -9,29 +9,89 @@ import ByProductsRevenue from './ByProductsRevenue';
 import SalariesWages from './SalariesWages';
 import ElectricityBillCalculator from './ElectricityBillCalculator';
 import DataBackupManager from './DataBackupManager';
+import PayablesReceivables from './PayablesReceivables';
 
-type TabType = 'home' | 'paddy' | 'production' | 'fci' | 'stock' | 'revenue' | 'salaries' | 'electricity' | 'backup';
+type TabType = 'home' | 'cmr-activity' | 'payables' | 'salaries' | 'revenue' | 'electricity' | 'backup';
+type CMRTabType = 'paddy' | 'production' | 'fci' | 'stock';
 
 const MainApp: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabType>('home');
+  const [activeCMRTab, setActiveCMRTab] = useState<CMRTabType>('paddy');
 
-  const tabs = [
-    { id: 'home', label: 'Home', icon: Home, component: null },
+  const mainTabs = [
+    { id: 'home', label: 'Home', icon: Home },
+    { id: 'cmr-activity', label: 'CMR Activity', icon: Factory },
+    { id: 'payables', label: 'Payables & Receivables', icon: CreditCard },
+    { id: 'salaries', label: 'Salaries & Wages', icon: Users },
+    { id: 'revenue', label: 'By-Products & Revenue', icon: TrendingUp },
+    { id: 'electricity', label: 'Electricity Bills', icon: Zap },
+    { id: 'backup', label: 'Backup & Restore', icon: HardDrive },
+  ];
+
+  const cmrTabs = [
     { id: 'paddy', label: 'Paddy Dashboard', icon: Package, component: Dashboard },
     { id: 'production', label: 'Rice Production', icon: Factory, component: RiceProduction },
     { id: 'fci', label: 'FCI Consignments', icon: Truck, component: FCIConsignments },
     { id: 'stock', label: 'Stock Management', icon: Sticker, component: StockManagement },
-    { id: 'salaries', label: 'Salaries & Wages', icon: Users, component: SalariesWages },
-    { id: 'revenue', label: 'By-Products & Revenue', icon: TrendingUp, component: ByProductsRevenue },
-    { id: 'electricity', label: 'Electricity Bills', icon: Zap, component: ElectricityBillCalculator },
-    { id: 'backup', label: 'Backup & Restore', icon: HardDrive, component: DataBackupManager },
   ];
 
   const handleNavigate = (tabId: string) => {
     setActiveTab(tabId as TabType);
   };
 
-  const ActiveComponent = tabs.find(tab => tab.id === activeTab)?.component;
+  const renderContent = () => {
+    if (activeTab === 'home') {
+      return <LandingPage onNavigate={handleNavigate} />;
+    }
+
+    if (activeTab === 'cmr-activity') {
+      const ActiveCMRComponent = cmrTabs.find(tab => tab.id === activeCMRTab)?.component;
+      return (
+        <div className="min-h-screen bg-gray-50">
+          {/* CMR Sub-navigation */}
+          <div className="bg-white shadow-sm border-b border-gray-200">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="flex space-x-8 overflow-x-auto">
+                {cmrTabs.map((tab) => {
+                  const Icon = tab.icon;
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => setActiveCMRTab(tab.id as CMRTabType)}
+                      className={`flex items-center space-x-2 py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap transition-colors duration-200 ${
+                        activeCMRTab === tab.id
+                          ? 'border-blue-500 text-blue-600'
+                          : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                      }`}
+                    >
+                      <Icon className="h-5 w-5" />
+                      <span>{tab.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+          {ActiveCMRComponent && <ActiveCMRComponent />}
+        </div>
+      );
+    }
+
+    switch (activeTab) {
+      case 'payables':
+        return <PayablesReceivables />;
+      case 'salaries':
+        return <SalariesWages />;
+      case 'revenue':
+        return <ByProductsRevenue />;
+      case 'electricity':
+        return <ElectricityBillCalculator />;
+      case 'backup':
+        return <DataBackupManager />;
+      default:
+        return <LandingPage onNavigate={handleNavigate} />;
+    }
+  };
 
   if (activeTab === 'home') {
     return <LandingPage onNavigate={handleNavigate} />;
@@ -39,11 +99,11 @@ const MainApp: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Tab Navigation */}
+      {/* Main Tab Navigation */}
       <div className="bg-white shadow-sm border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex space-x-8 overflow-x-auto">
-            {tabs.map((tab) => {
+            {mainTabs.map((tab) => {
               const Icon = tab.icon;
               return (
                 <button
@@ -66,7 +126,7 @@ const MainApp: React.FC = () => {
 
       {/* Tab Content */}
       <div className="flex-1">
-        {ActiveComponent && <ActiveComponent />}
+        {renderContent()}
       </div>
     </div>
   );

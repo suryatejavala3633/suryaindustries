@@ -18,7 +18,12 @@ import {
   FRKStock,
   RexinSticker,
   ReconciliationRecord,
-  OldGunnyDispatch
+  OldGunnyDispatch,
+  Purchase,
+  PurchasePayment,
+  SalesRecord,
+  SalesPayment,
+  Vendor
 } from '../types';
 
 // Local Storage Keys
@@ -41,6 +46,11 @@ const STORAGE_KEYS = {
   REXIN_STICKERS: 'cmr_rexin_stickers',
   RECONCILIATIONS: 'cmr_reconciliations',
   GUNNY_DISPATCHES: 'cmr_gunny_dispatches',
+  PURCHASES: 'cmr_purchases',
+  PURCHASE_PAYMENTS: 'cmr_purchase_payments',
+  SALES_RECORDS: 'cmr_sales_records',
+  SALES_PAYMENTS: 'cmr_sales_payments',
+  VENDORS: 'cmr_vendors',
   LAST_SYNC: 'cmr_last_sync'
 };
 
@@ -175,6 +185,62 @@ export const loadGunnyDispatches = (): OldGunnyDispatch[] => {
   return data;
 };
 
+// New Payables and Receivables Storage Functions
+export const savePurchases = (data: Purchase[]) => {
+  console.log('Saving purchases:', data);
+  saveToLocalStorage(STORAGE_KEYS.PURCHASES, data);
+};
+
+export const loadPurchases = (): Purchase[] => {
+  const data = loadFromLocalStorage<Purchase>(STORAGE_KEYS.PURCHASES);
+  console.log('Loaded purchases:', data);
+  return data;
+};
+
+export const savePurchasePayments = (data: PurchasePayment[]) => {
+  console.log('Saving purchase payments:', data);
+  saveToLocalStorage(STORAGE_KEYS.PURCHASE_PAYMENTS, data);
+};
+
+export const loadPurchasePayments = (): PurchasePayment[] => {
+  const data = loadFromLocalStorage<PurchasePayment>(STORAGE_KEYS.PURCHASE_PAYMENTS);
+  console.log('Loaded purchase payments:', data);
+  return data;
+};
+
+export const saveSalesRecords = (data: SalesRecord[]) => {
+  console.log('Saving sales records:', data);
+  saveToLocalStorage(STORAGE_KEYS.SALES_RECORDS, data);
+};
+
+export const loadSalesRecords = (): SalesRecord[] => {
+  const data = loadFromLocalStorage<SalesRecord>(STORAGE_KEYS.SALES_RECORDS);
+  console.log('Loaded sales records:', data);
+  return data;
+};
+
+export const saveSalesPayments = (data: SalesPayment[]) => {
+  console.log('Saving sales payments:', data);
+  saveToLocalStorage(STORAGE_KEYS.SALES_PAYMENTS, data);
+};
+
+export const loadSalesPayments = (): SalesPayment[] => {
+  const data = loadFromLocalStorage<SalesPayment>(STORAGE_KEYS.SALES_PAYMENTS);
+  console.log('Loaded sales payments:', data);
+  return data;
+};
+
+export const saveVendors = (data: Vendor[]) => {
+  console.log('Saving vendors:', data);
+  saveToLocalStorage(STORAGE_KEYS.VENDORS, data);
+};
+
+export const loadVendors = (): Vendor[] => {
+  const data = loadFromLocalStorage<Vendor>(STORAGE_KEYS.VENDORS);
+  console.log('Loaded vendors:', data);
+  return data;
+};
+
 // Backup and Restore Functions
 export const exportAllData = () => {
   const allData = {
@@ -196,6 +262,11 @@ export const exportAllData = () => {
     rexinStickers: loadRexinStickers(),
     reconciliations: loadReconciliations(),
     gunnyDispatches: loadGunnyDispatches(),
+    purchases: loadPurchases(),
+    purchasePayments: loadPurchasePayments(),
+    salesRecords: loadSalesRecords(),
+    salesPayments: loadSalesPayments(),
+    vendors: loadVendors(),
     exportDate: new Date().toISOString(),
     version: '1.0'
   };
@@ -244,6 +315,11 @@ export const importAllData = (file: File): Promise<boolean> => {
         if (data.rexinStickers) saveRexinStickers(data.rexinStickers);
         if (data.reconciliations) saveReconciliations(data.reconciliations);
         if (data.gunnyDispatches) saveGunnyDispatches(data.gunnyDispatches);
+        if (data.purchases) savePurchases(data.purchases);
+        if (data.purchasePayments) savePurchasePayments(data.purchasePayments);
+        if (data.salesRecords) saveSalesRecords(data.salesRecords);
+        if (data.salesPayments) saveSalesPayments(data.salesPayments);
+        if (data.vendors) saveVendors(data.vendors);
 
         resolve(true);
       } catch (error) {
@@ -299,6 +375,11 @@ const getAllLocalData = () => {
     frkStocks: loadFRKStocks(),
     rexinStickers: loadRexinStickers(),
     reconciliations: loadReconciliations(),
-    gunnyDispatches: loadGunnyDispatches()
+    gunnyDispatches: loadGunnyDispatches(),
+    purchases: loadPurchases(),
+    purchasePayments: loadPurchasePayments(),
+    salesRecords: loadSalesRecords(),
+    salesPayments: loadSalesPayments(),
+    vendors: loadVendors()
   };
 };
