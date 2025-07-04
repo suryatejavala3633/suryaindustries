@@ -5,13 +5,13 @@ import Dashboard from './Dashboard';
 import RiceProduction from './RiceProduction';
 import FCIConsignments from './FCIConsignments';
 import StockManagement from './StockManagement';
-import ByProductsRevenue from './ByProductsRevenue';
+import StreamlinedByProducts from './StreamlinedByProducts';
 import SalariesWages from './SalariesWages';
 import ElectricityBillCalculator from './ElectricityBillCalculator';
 import DataBackupManager from './DataBackupManager';
-import PayablesReceivables from './PayablesReceivables';
+import SalesPurchases from './SalesPurchases';
 
-type TabType = 'home' | 'cmr-activity' | 'payables' | 'salaries' | 'revenue' | 'electricity' | 'backup';
+type TabType = 'home' | 'cmr-activity' | 'sales-purchases' | 'salaries' | 'byproducts' | 'electricity' | 'backup';
 type CMRTabType = 'paddy' | 'production' | 'fci' | 'stock';
 
 const MainApp: React.FC = () => {
@@ -21,9 +21,9 @@ const MainApp: React.FC = () => {
   const mainTabs = [
     { id: 'home', label: 'Home', icon: Home },
     { id: 'cmr-activity', label: 'CMR Activity', icon: Factory },
-    { id: 'payables', label: 'Payables & Receivables', icon: CreditCard },
+    { id: 'sales-purchases', label: 'Sales & Purchases', icon: CreditCard },
     { id: 'salaries', label: 'Salaries & Wages', icon: Users },
-    { id: 'revenue', label: 'By-Products & Revenue', icon: TrendingUp },
+    { id: 'byproducts', label: 'By-Products', icon: TrendingUp },
     { id: 'electricity', label: 'Electricity Bills', icon: Zap },
     { id: 'backup', label: 'Backup & Restore', icon: HardDrive },
   ];
@@ -78,12 +78,12 @@ const MainApp: React.FC = () => {
     }
 
     switch (activeTab) {
-      case 'payables':
-        return <PayablesReceivables />;
+      case 'sales-purchases':
+        return <SalesPurchases />;
       case 'salaries':
         return <SalariesWages />;
-      case 'revenue':
-        return <ByProductsRevenue />;
+      case 'byproducts':
+        return <StreamlinedByProducts />;
       case 'electricity':
         return <ElectricityBillCalculator />;
       case 'backup':
