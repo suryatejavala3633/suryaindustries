@@ -1,41 +1,27 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Plus, Download, Edit, Save, X, Trash2, FileText, Users, IndianRupee, Calendar, AlertCircle, Truck, Package } from 'lucide-react';
-import { Purchase, PurchasePayment, SalesRecord, SalesPayment, Vendor, FCIConsignment, LorryFreight } from '../types';
-import { formatCurrency, formatDecimal, calculateDaysDue } from '../utils/calculations';
+import { Plus, Download, Edit, Save, X, Trash2, Upload, FileText, TrendingUp, Users, IndianRupee, Package, AlertCircle } from 'lucide-react';
+import { Purchase, PurchasePayment, SalesRecord, SalesPayment, Vendor, ByProduct } from '../types';
+import { formatDecimal, formatCurrency, calculateDaysDue } from '../utils/calculations';
 import { 
   savePurchases, loadPurchases, savePurchasePayments, loadPurchasePayments,
   saveSalesRecords, loadSalesRecords, saveSalesPayments, loadSalesPayments,
-  saveVendors, loadVendors, loadFCIConsignments, saveLorryFreights, loadLorryFreights
+  saveVendors, loadVendors, loadByProducts
 } from '../utils/dataStorage';
 import StatsCard from './StatsCard';
 
 const SalesPurchases: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'purchases' | 'sales' | 'freight' | 'vendors'>('purchases');
+  const [activeTab, setActiveTab] = useState<'purchases' | 'sales' | 'vendors'>('sales');
   const [purchases, setPurchases] = useState<Purchase[]>([]);
   const [purchasePayments, setPurchasePayments] = useState<PurchasePayment[]>([]);
   const [salesRecords, setSalesRecords] = useState<SalesRecord[]>([]);
   const [salesPayments, setSalesPayments] = useState<SalesPayment[]>([]);
   const [vendors, setVendors] = useState<Vendor[]>([]);
-  const [fciConsignments, setFciConsignments] = useState<FCIConsignment[]>([]);
-  const [lorryFreights, setLorryFreights] = useState<LorryFreight[]>([]);
+  const [byProducts, setByProducts] = useState<ByProduct[]>([]);
   const [showAddForm, setShowAddForm] = useState(false);
-  const [editingItem, setEditingItem] = useState<string | null>(null);
+  const [editingRecord, setEditingRecord] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
 
   // Form states
-  const [purchaseForm, setPurchaseForm] = useState({
-    billNumber: '',
-    billDate: '',
-    vendorName: '',
-    vendorGST: '',
-    vendorAddress: '',
-    vendorPhone: '',
-    category: 'gst' as 'gst' | 'cash',
-    paymentTerms: '30',
-    items: [{ itemName: '', quantity: '', unit: 'kg', rate: '', gstRate: '18' }],
-    notes: ''
-  });
-
   const [salesForm, setSalesForm] = useState({
     invoiceNumber: '',
     invoiceDate: '',
@@ -45,8 +31,39 @@ const SalesPurchases: React.FC = () => {
     partyPhone: '',
     lorryNumber: '',
     paymentTerms: '30',
-    items: [{ itemName: '', quantity: '', unit: 'qtl', rate: '', gstRate: '5' }],
-    notes: ''
+    notes: '',
+    items: [{ 
+      id: Date.now().toString(), 
+      itemName: '', 
+      itemType: 'by-product' as 'by-product' | 'service' | 'other',
+      byProductId: '',
+      description: '', 
+      quantity: '', 
+      unit: 'qtl', 
+      rate: '', 
+      gstRate: '5' 
+    }]
+  });
+
+  const [purchaseForm, setPurchaseForm] = useState({
+    billNumber: '',
+    billDate: '',
+    vendorName: '',
+    vendorGST: '',
+    vendorAddress: '',
+    vendorPhone: '',
+    paymentTerms: '30',
+    category: 'gst' as 'gst' | 'cash',
+    notes: '',
+    items: [{ 
+      id: Date.now().toString(), 
+      itemName: '', 
+      description: '', 
+      quantity: '', 
+      unit: 'qtl', 
+      rate: '', 
+      gstRate: '18' 
+    }]
   });
 
   const [vendorForm, setVendorForm] = useState({
@@ -60,15 +77,6 @@ const SalesPurchases: React.FC = () => {
     notes: ''
   });
 
-  const [freightForm, setFreightForm] = useState({
-    consignmentId: '',
-    transporterName: '',
-    freightPerMT: '',
-    advancePaid: '',
-    deductions: [{ description: '', amount: '' }],
-    notes: ''
-  });
-
   // Load data on component mount
   useEffect(() => {
     setPurchases(loadPurchases());
@@ -76,8 +84,7 @@ const SalesPurchases: React.FC = () => {
     setSalesRecords(loadSalesRecords());
     setSalesPayments(loadSalesPayments());
     setVendors(loadVendors());
-    setFciConsignments(loadFCIConsignments());
-    setLorryFreights(loadLorryFreights());
+    setByProducts(loadByProducts());
   }, []);
 
   // Auto-save data when state changes
@@ -101,125 +108,55 @@ const SalesPurchases: React.FC = () => {
     if (vendors.length > 0) saveVendors(vendors);
   }, [vendors]);
 
-  useEffect(() => {
-    if (lorryFreights.length > 0) saveLorryFreights(lorryFreights);
-  }, [lorryFreights]);
-
   // Calculate summary stats
-  const totalPurchases = useMemo(() => purchases.reduce((sum, p) => sum + p.totalAmount, 0), [purchases]);
-  const totalSales = useMemo(() => salesRecords.reduce((sum, s) => sum + s.totalAmount, 0), [salesRecords]);
-  const purchaseOutstanding = useMemo(() => purchases.reduce((sum, p) => sum + p.balanceAmount, 0), [purchases]);
-  const salesOutstanding = useMemo(() => salesRecords.reduce((sum, s) => sum + s.balanceAmount, 0), [salesRecords]);
+  const totalPurchases = useMemo(() => purchases.reduce((sum, purchase) => sum + purchase.totalAmount, 0), [purchases]);
+  const totalSales = useMemo(() => salesRecords.reduce((sum, sale) => sum + sale.totalAmount, 0), [salesRecords]);
+  const totalPurchaseOutstanding = useMemo(() => purchases.reduce((sum, purchase) => sum + purchase.balanceAmount, 0), [purchases]);
+  const totalSalesOutstanding = useMemo(() => salesRecords.reduce((sum, sale) => sum + sale.balanceAmount, 0), [salesRecords]);
 
-  // Get overdue items
-  const overduePurchases = useMemo(() => 
-    purchases.filter(p => p.balanceAmount > 0 && calculateDaysDue(p.dueDate) > 0), 
-    [purchases]
-  );
-  
-  const overdueSales = useMemo(() => 
-    salesRecords.filter(s => s.balanceAmount > 0 && calculateDaysDue(s.dueDate) > 0), 
-    [salesRecords]
-  );
-
-  // Available consignments for freight
-  const availableConsignments = useMemo(() => 
-    fciConsignments.filter(c => !lorryFreights.some(f => f.consignmentId === c.id)), 
-    [fciConsignments, lorryFreights]
-  );
-
-  const handlePurchaseSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    const items = purchaseForm.items.map(item => {
-      const quantity = parseFloat(item.quantity);
-      const rate = parseFloat(item.rate);
-      const gstRate = parseFloat(item.gstRate);
-      const amount = quantity * rate;
-      const gstAmount = (amount * gstRate) / 100;
-      
-      return {
-        id: Date.now().toString() + Math.random(),
-        itemName: item.itemName,
-        description: '',
-        quantity,
-        unit: item.unit,
-        rate,
-        gstRate,
-        amount,
-        gstAmount,
-        totalAmount: amount + gstAmount
-      };
-    });
-
-    const subtotal = items.reduce((sum, item) => sum + item.amount, 0);
-    const gstAmount = items.reduce((sum, item) => sum + item.gstAmount, 0);
-    const totalAmount = subtotal + gstAmount;
-
-    const newPurchase: Purchase = {
-      id: Date.now().toString(),
-      billNumber: purchaseForm.billNumber,
-      billDate: purchaseForm.billDate,
-      vendorName: purchaseForm.vendorName,
-      vendorGST: purchaseForm.vendorGST,
-      vendorAddress: purchaseForm.vendorAddress,
-      vendorPhone: purchaseForm.vendorPhone,
-      items,
-      subtotal,
-      gstAmount,
-      totalAmount,
-      paidAmount: 0,
-      balanceAmount: totalAmount,
-      paymentStatus: 'pending',
-      paymentTerms: parseInt(purchaseForm.paymentTerms),
-      dueDate: new Date(new Date(purchaseForm.billDate).getTime() + parseInt(purchaseForm.paymentTerms) * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      category: purchaseForm.category,
-      notes: purchaseForm.notes
-    };
-
-    setPurchases([...purchases, newPurchase]);
-    setPurchaseForm({
-      billNumber: '',
-      billDate: '',
-      vendorName: '',
-      vendorGST: '',
-      vendorAddress: '',
-      vendorPhone: '',
-      category: 'gst',
-      paymentTerms: '30',
-      items: [{ itemName: '', quantity: '', unit: 'kg', rate: '', gstRate: '18' }],
-      notes: ''
-    });
-    setShowAddForm(false);
-  };
+  // Available by-products for sales
+  const availableByProducts = useMemo(() => {
+    return byProducts.filter(product => product.quantity > 0);
+  }, [byProducts]);
 
   const handleSalesSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    const items = salesForm.items.map(item => {
-      const quantity = parseFloat(item.quantity);
-      const rate = parseFloat(item.rate);
-      const gstRate = parseFloat(item.gstRate);
+    // Calculate totals
+    let subtotal = 0;
+    let gstAmount = 0;
+    
+    const processedItems = salesForm.items.map(item => {
+      const quantity = parseFloat(item.quantity) || 0;
+      const rate = parseFloat(item.rate) || 0;
+      const gstRate = parseFloat(item.gstRate) || 0;
+      
       const amount = quantity * rate;
-      const gstAmount = (amount * gstRate) / 100;
+      const itemGstAmount = (amount * gstRate) / 100;
+      const totalAmount = amount + itemGstAmount;
+      
+      subtotal += amount;
+      gstAmount += itemGstAmount;
       
       return {
-        id: Date.now().toString() + Math.random(),
-        itemName: item.itemName,
-        description: '',
+        id: item.id,
+        itemName: item.itemType === 'by-product' && item.byProductId ? 
+          byProducts.find(bp => bp.id === item.byProductId)?.name || item.itemName : 
+          item.itemName,
+        description: item.description,
         quantity,
         unit: item.unit,
         rate,
         gstRate,
         amount,
-        gstAmount,
-        totalAmount: amount + gstAmount
+        gstAmount: itemGstAmount,
+        totalAmount
       };
     });
 
-    const subtotal = items.reduce((sum, item) => sum + item.amount, 0);
-    const gstAmount = items.reduce((sum, item) => sum + item.gstAmount, 0);
     const totalAmount = subtotal + gstAmount;
+    const dueDate = new Date(salesForm.invoiceDate);
+    dueDate.setDate(dueDate.getDate() + parseInt(salesForm.paymentTerms));
 
     const newSale: SalesRecord = {
       id: Date.now().toString(),
@@ -230,7 +167,7 @@ const SalesPurchases: React.FC = () => {
       partyAddress: salesForm.partyAddress,
       partyPhone: salesForm.partyPhone,
       lorryNumber: salesForm.lorryNumber,
-      items,
+      items: processedItems,
       subtotal,
       gstAmount,
       totalAmount,
@@ -238,11 +175,13 @@ const SalesPurchases: React.FC = () => {
       balanceAmount: totalAmount,
       paymentStatus: 'pending',
       paymentTerms: parseInt(salesForm.paymentTerms),
-      dueDate: new Date(new Date(salesForm.invoiceDate).getTime() + parseInt(salesForm.paymentTerms) * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      dueDate: dueDate.toISOString().split('T')[0],
       notes: salesForm.notes
     };
 
     setSalesRecords([...salesRecords, newSale]);
+    
+    // Reset form
     setSalesForm({
       invoiceNumber: '',
       invoiceDate: '',
@@ -252,8 +191,102 @@ const SalesPurchases: React.FC = () => {
       partyPhone: '',
       lorryNumber: '',
       paymentTerms: '30',
-      items: [{ itemName: '', quantity: '', unit: 'qtl', rate: '', gstRate: '5' }],
-      notes: ''
+      notes: '',
+      items: [{ 
+        id: Date.now().toString(), 
+        itemName: '', 
+        itemType: 'by-product',
+        byProductId: '',
+        description: '', 
+        quantity: '', 
+        unit: 'qtl', 
+        rate: '', 
+        gstRate: '5' 
+      }]
+    });
+    setShowAddForm(false);
+  };
+
+  const handlePurchaseSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Calculate totals
+    let subtotal = 0;
+    let gstAmount = 0;
+    
+    const processedItems = purchaseForm.items.map(item => {
+      const quantity = parseFloat(item.quantity) || 0;
+      const rate = parseFloat(item.rate) || 0;
+      const gstRate = parseFloat(item.gstRate) || 0;
+      
+      const amount = quantity * rate;
+      const itemGstAmount = (amount * gstRate) / 100;
+      const totalAmount = amount + itemGstAmount;
+      
+      subtotal += amount;
+      gstAmount += itemGstAmount;
+      
+      return {
+        id: item.id,
+        itemName: item.itemName,
+        description: item.description,
+        quantity,
+        unit: item.unit,
+        rate,
+        gstRate,
+        amount,
+        gstAmount: itemGstAmount,
+        totalAmount
+      };
+    });
+
+    const totalAmount = subtotal + gstAmount;
+    const dueDate = new Date(purchaseForm.billDate);
+    dueDate.setDate(dueDate.getDate() + parseInt(purchaseForm.paymentTerms));
+
+    const newPurchase: Purchase = {
+      id: Date.now().toString(),
+      billNumber: purchaseForm.billNumber,
+      billDate: purchaseForm.billDate,
+      vendorName: purchaseForm.vendorName,
+      vendorGST: purchaseForm.vendorGST,
+      vendorAddress: purchaseForm.vendorAddress,
+      vendorPhone: purchaseForm.vendorPhone,
+      items: processedItems,
+      subtotal,
+      gstAmount,
+      totalAmount,
+      paidAmount: 0,
+      balanceAmount: totalAmount,
+      paymentStatus: 'pending',
+      paymentTerms: parseInt(purchaseForm.paymentTerms),
+      dueDate: dueDate.toISOString().split('T')[0],
+      category: purchaseForm.category,
+      notes: purchaseForm.notes
+    };
+
+    setPurchases([...purchases, newPurchase]);
+    
+    // Reset form
+    setPurchaseForm({
+      billNumber: '',
+      billDate: '',
+      vendorName: '',
+      vendorGST: '',
+      vendorAddress: '',
+      vendorPhone: '',
+      paymentTerms: '30',
+      category: 'gst',
+      notes: '',
+      items: [{ 
+        id: Date.now().toString(), 
+        itemName: '', 
+        description: '', 
+        quantity: '', 
+        unit: 'qtl', 
+        rate: '', 
+        gstRate: '18' 
+      }]
     });
     setShowAddForm(false);
   };
@@ -275,6 +308,8 @@ const SalesPurchases: React.FC = () => {
     };
 
     setVendors([...vendors, newVendor]);
+    
+    // Reset form
     setVendorForm({
       name: '',
       address: '',
@@ -288,98 +323,128 @@ const SalesPurchases: React.FC = () => {
     setShowAddForm(false);
   };
 
-  const handleFreightSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    const consignment = fciConsignments.find(c => c.id === freightForm.consignmentId);
-    if (!consignment) return;
-
-    const quantityMT = (consignment.riceQuantity + (consignment.frkQuantity / 100)) / 10; // Convert to MT
-    const freightPerMT = parseFloat(freightForm.freightPerMT);
-    const grossFreightAmount = quantityMT * freightPerMT;
-    
-    const deductions = freightForm.deductions
-      .filter(d => d.description && d.amount)
-      .map(d => ({
-        id: Date.now().toString() + Math.random(),
-        description: d.description,
-        amount: parseFloat(d.amount)
-      }));
-    
-    const totalDeductions = deductions.reduce((sum, d) => sum + d.amount, 0);
-    const netFreightAmount = grossFreightAmount - totalDeductions;
-    const advancePaid = parseFloat(freightForm.advancePaid) || 0;
-    const balanceAmount = netFreightAmount - advancePaid;
-
-    const newFreight: LorryFreight = {
-      id: Date.now().toString(),
-      consignmentId: consignment.id,
-      ackNumber: consignment.ackNumber,
-      lorryNumber: consignment.lorryNumber || '',
-      transporterName: freightForm.transporterName,
-      quantityMT,
-      freightPerMT,
-      grossFreightAmount,
-      deductions,
-      netFreightAmount,
-      advancePaid,
-      balanceAmount,
-      dispatchDate: consignment.consignmentDate,
-      paymentStatus: balanceAmount <= 0 ? 'fully-paid' : advancePaid > 0 ? 'advance-paid' : 'pending',
-      notes: freightForm.notes
-    };
-
-    setLorryFreights([...lorryFreights, newFreight]);
-    setFreightForm({
-      consignmentId: '',
-      transporterName: '',
-      freightPerMT: '',
-      advancePaid: '',
-      deductions: [{ description: '', amount: '' }],
-      notes: ''
+  const addSalesItem = () => {
+    setSalesForm({
+      ...salesForm,
+      items: [...salesForm.items, { 
+        id: Date.now().toString(), 
+        itemName: '', 
+        itemType: 'by-product',
+        byProductId: '',
+        description: '', 
+        quantity: '', 
+        unit: 'qtl', 
+        rate: '', 
+        gstRate: '5' 
+      }]
     });
-    setShowAddForm(false);
+  };
+
+  const removeSalesItem = (id: string) => {
+    setSalesForm({
+      ...salesForm,
+      items: salesForm.items.filter(item => item.id !== id)
+    });
+  };
+
+  const updateSalesItem = (id: string, field: string, value: string) => {
+    setSalesForm({
+      ...salesForm,
+      items: salesForm.items.map(item => 
+        item.id === id ? { ...item, [field]: value } : item
+      )
+    });
   };
 
   const addPurchaseItem = () => {
     setPurchaseForm({
       ...purchaseForm,
-      items: [...purchaseForm.items, { itemName: '', quantity: '', unit: 'kg', rate: '', gstRate: '18' }]
+      items: [...purchaseForm.items, { 
+        id: Date.now().toString(), 
+        itemName: '', 
+        description: '', 
+        quantity: '', 
+        unit: 'qtl', 
+        rate: '', 
+        gstRate: '18' 
+      }]
     });
   };
 
-  const addSalesItem = () => {
-    setSalesForm({
-      ...salesForm,
-      items: [...salesForm.items, { itemName: '', quantity: '', unit: 'qtl', rate: '', gstRate: '5' }]
+  const removePurchaseItem = (id: string) => {
+    setPurchaseForm({
+      ...purchaseForm,
+      items: purchaseForm.items.filter(item => item.id !== id)
     });
   };
 
-  const addDeduction = () => {
-    setFreightForm({
-      ...freightForm,
-      deductions: [...freightForm.deductions, { description: '', amount: '' }]
+  const updatePurchaseItem = (id: string, field: string, value: string) => {
+    setPurchaseForm({
+      ...purchaseForm,
+      items: purchaseForm.items.map(item => 
+        item.id === id ? { ...item, [field]: value } : item
+      )
     });
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'paid':
-      case 'fully-paid':
-        return 'bg-green-100 text-green-800 border-green-200';
-      case 'partial':
-      case 'advance-paid':
-        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      default:
-        return 'bg-red-100 text-red-800 border-red-200';
+  const exportData = () => {
+    const data = activeTab === 'sales' ? salesRecords : activeTab === 'purchases' ? purchases : vendors;
+    const filename = `${activeTab}-data.csv`;
+    
+    let csvContent = '';
+    
+    if (activeTab === 'sales') {
+      csvContent = [
+        ['Invoice No', 'Date', 'Party Name', 'Total Amount', 'Paid Amount', 'Balance', 'Status'],
+        ...salesRecords.map(sale => [
+          sale.invoiceNumber,
+          sale.invoiceDate,
+          sale.partyName,
+          sale.totalAmount,
+          sale.paidAmount,
+          sale.balanceAmount,
+          sale.paymentStatus
+        ])
+      ].map(row => row.join(',')).join('\n');
+    } else if (activeTab === 'purchases') {
+      csvContent = [
+        ['Bill No', 'Date', 'Vendor Name', 'Total Amount', 'Paid Amount', 'Balance', 'Status'],
+        ...purchases.map(purchase => [
+          purchase.billNumber,
+          purchase.billDate,
+          purchase.vendorName,
+          purchase.totalAmount,
+          purchase.paidAmount,
+          purchase.balanceAmount,
+          purchase.paymentStatus
+        ])
+      ].map(row => row.join(',')).join('\n');
+    } else {
+      csvContent = [
+        ['Name', 'Phone', 'GST Number', 'Payment Terms', 'Created Date'],
+        ...vendors.map(vendor => [
+          vendor.name,
+          vendor.phone,
+          vendor.gstNumber || '',
+          vendor.paymentTerms,
+          vendor.createdDate
+        ])
+      ].map(row => row.join(',')).join('\n');
     }
+
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    window.URL.revokeObjectURL(url);
   };
 
   const tabs = [
-    { id: 'purchases', label: 'Purchases', icon: FileText },
-    { id: 'sales', label: 'Sales', icon: IndianRupee },
-    { id: 'freight', label: 'Lorry Freight', icon: Truck },
-    { id: 'vendors', label: 'Vendors', icon: Users }
+    { id: 'sales', label: 'Sales Records', icon: TrendingUp },
+    { id: 'purchases', label: 'Purchase Bills', icon: FileText },
+    { id: 'vendors', label: 'Vendor Database', icon: Users }
   ];
 
   return (
@@ -388,47 +453,56 @@ const SalesPurchases: React.FC = () => {
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Sales & Purchases</h1>
-            <p className="text-gray-600 mt-2">Manage sales, purchases, freight and vendor relationships</p>
+            <h1 className="text-3xl font-bold text-gray-900">Sales & Purchases Management</h1>
+            <p className="text-gray-600 mt-2">Manage sales invoices, purchase bills, and vendor relationships</p>
           </div>
-          <button
-            onClick={() => setShowAddForm(true)}
-            className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-emerald-500 to-blue-600 text-white text-sm font-medium rounded-lg hover:from-emerald-600 hover:to-blue-700 transition-all duration-200 shadow-md hover:shadow-lg"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Add {activeTab === 'purchases' ? 'Purchase' : activeTab === 'sales' ? 'Sale' : activeTab === 'freight' ? 'Freight' : 'Vendor'}
-          </button>
+          <div className="flex items-center space-x-3">
+            <button
+              onClick={exportData}
+              className="inline-flex items-center px-4 py-2 bg-gray-600 text-white text-sm font-medium rounded-lg hover:bg-gray-700 transition-all duration-200 shadow-md hover:shadow-lg"
+            >
+              <Download className="h-4 w-4 mr-2" />
+              Export Data
+            </button>
+            <button
+              onClick={() => setShowAddForm(true)}
+              className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-emerald-500 to-blue-600 text-white text-sm font-medium rounded-lg hover:from-emerald-600 hover:to-blue-700 transition-all duration-200 shadow-md hover:shadow-lg"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Add {activeTab === 'sales' ? 'Sale' : activeTab === 'purchases' ? 'Purchase' : 'Vendor'}
+            </button>
+          </div>
         </div>
 
         {/* Summary Stats */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <StatsCard
-            title="Total Purchases"
-            value={formatCurrency(totalPurchases)}
-            subtitle={`Outstanding: ${formatCurrency(purchaseOutstanding)}`}
-            icon={<FileText className="h-6 w-6" />}
-            color="from-red-500 to-red-600"
-          />
-          <StatsCard
             title="Total Sales"
             value={formatCurrency(totalSales)}
-            subtitle={`Outstanding: ${formatCurrency(salesOutstanding)}`}
-            icon={<IndianRupee className="h-6 w-6" />}
+            subtitle={`${salesRecords.length} invoices`}
+            icon={<TrendingUp className="h-6 w-6" />}
             color="from-green-500 to-green-600"
           />
           <StatsCard
-            title="Overdue Purchases"
-            value={overduePurchases.length.toString()}
-            subtitle={`Amount: ${formatCurrency(overduePurchases.reduce((sum, p) => sum + p.balanceAmount, 0))}`}
+            title="Sales Outstanding"
+            value={formatCurrency(totalSalesOutstanding)}
+            subtitle="Pending collections"
             icon={<AlertCircle className="h-6 w-6" />}
             color="from-orange-500 to-orange-600"
           />
           <StatsCard
-            title="Overdue Sales"
-            value={overdueSales.length.toString()}
-            subtitle={`Amount: ${formatCurrency(overdueSales.reduce((sum, s) => sum + s.balanceAmount, 0))}`}
-            icon={<Calendar className="h-6 w-6" />}
-            color="from-purple-500 to-purple-600"
+            title="Total Purchases"
+            value={formatCurrency(totalPurchases)}
+            subtitle={`${purchases.length} bills`}
+            icon={<FileText className="h-6 w-6" />}
+            color="from-blue-500 to-blue-600"
+          />
+          <StatsCard
+            title="Purchase Outstanding"
+            value={formatCurrency(totalPurchaseOutstanding)}
+            subtitle="Pending payments"
+            icon={<IndianRupee className="h-6 w-6" />}
+            color="from-red-500 to-red-600"
           />
         </div>
 
@@ -458,80 +532,13 @@ const SalesPurchases: React.FC = () => {
 
           {/* Tab Content */}
           <div className="p-6">
-            {activeTab === 'purchases' && (
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Purchase Records</h3>
-                {purchases.length === 0 ? (
-                  <div className="text-center py-8">
-                    <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-600">No purchase records yet.</p>
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Bill No</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Vendor</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Balance</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Due Date</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-200">
-                        {purchases.map((purchase) => {
-                          const daysDue = calculateDaysDue(purchase.dueDate);
-                          return (
-                            <tr key={purchase.id} className="hover:bg-gray-50">
-                              <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-blue-600">
-                                {purchase.billNumber}
-                              </td>
-                              <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-600">
-                                {new Date(purchase.billDate).toLocaleDateString()}
-                              </td>
-                              <td className="px-4 py-4 text-sm text-gray-900 max-w-xs truncate">
-                                {purchase.vendorName}
-                              </td>
-                              <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
-                                {formatCurrency(purchase.totalAmount)}
-                              </td>
-                              <td className="px-4 py-4 whitespace-nowrap text-sm text-red-600 font-medium">
-                                {formatCurrency(purchase.balanceAmount)}
-                              </td>
-                              <td className="px-4 py-4 whitespace-nowrap">
-                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(purchase.paymentStatus)}`}>
-                                  {purchase.paymentStatus}
-                                </span>
-                              </td>
-                              <td className="px-4 py-4 whitespace-nowrap text-sm">
-                                <div className={`${daysDue > 0 ? 'text-red-600 font-medium' : 'text-gray-600'}`}>
-                                  {new Date(purchase.dueDate).toLocaleDateString()}
-                                  {daysDue > 0 && (
-                                    <div className="text-xs text-red-500">
-                                      {daysDue} days overdue
-                                    </div>
-                                  )}
-                                </div>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
-            )}
-
             {activeTab === 'sales' && (
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Sales Records</h3>
                 {salesRecords.length === 0 ? (
                   <div className="text-center py-8">
-                    <IndianRupee className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-600">No sales records yet.</p>
+                    <TrendingUp className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-600">No sales records yet. Create your first sale invoice.</p>
                   </div>
                 ) : (
                   <div className="overflow-x-auto">
@@ -540,51 +547,57 @@ const SalesPurchases: React.FC = () => {
                         <tr>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Invoice No</th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Party</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Party Name</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Items</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Amount</th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Balance</th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Due Date</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-200">
-                        {salesRecords.map((sale) => {
-                          const daysDue = calculateDaysDue(sale.dueDate);
-                          return (
-                            <tr key={sale.id} className="hover:bg-gray-50">
-                              <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-blue-600">
-                                {sale.invoiceNumber}
-                              </td>
-                              <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-600">
-                                {new Date(sale.invoiceDate).toLocaleDateString()}
-                              </td>
-                              <td className="px-4 py-4 text-sm text-gray-900 max-w-xs truncate">
-                                {sale.partyName}
-                              </td>
-                              <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
-                                {formatCurrency(sale.totalAmount)}
-                              </td>
-                              <td className="px-4 py-4 whitespace-nowrap text-sm text-green-600 font-medium">
-                                {formatCurrency(sale.balanceAmount)}
-                              </td>
-                              <td className="px-4 py-4 whitespace-nowrap">
-                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(sale.paymentStatus)}`}>
-                                  {sale.paymentStatus}
-                                </span>
-                              </td>
-                              <td className="px-4 py-4 whitespace-nowrap text-sm">
-                                <div className={`${daysDue > 0 ? 'text-red-600 font-medium' : 'text-gray-600'}`}>
-                                  {new Date(sale.dueDate).toLocaleDateString()}
-                                  {daysDue > 0 && (
-                                    <div className="text-xs text-red-500">
-                                      {daysDue} days overdue
-                                    </div>
-                                  )}
-                                </div>
-                              </td>
-                            </tr>
-                          );
-                        })}
+                        {salesRecords.map((sale) => (
+                          <tr key={sale.id} className="hover:bg-gray-50">
+                            <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-blue-600">
+                              {sale.invoiceNumber}
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-600">
+                              {new Date(sale.invoiceDate).toLocaleDateString()}
+                            </td>
+                            <td className="px-4 py-4 text-sm font-medium text-gray-900 max-w-xs">
+                              <div className="truncate">{sale.partyName}</div>
+                              {sale.lorryNumber && (
+                                <div className="text-xs text-gray-500">Lorry: {sale.lorryNumber}</div>
+                              )}
+                            </td>
+                            <td className="px-4 py-4 text-sm text-gray-600">
+                              <div className="space-y-1">
+                                {sale.items.slice(0, 2).map((item, index) => (
+                                  <div key={index} className="text-xs">
+                                    {item.itemName} - {formatDecimal(item.quantity)} {item.unit}
+                                  </div>
+                                ))}
+                                {sale.items.length > 2 && (
+                                  <div className="text-xs text-gray-400">+{sale.items.length - 2} more</div>
+                                )}
+                              </div>
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
+                              {formatCurrency(sale.totalAmount)}
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap text-sm text-red-600 font-medium">
+                              {formatCurrency(sale.balanceAmount)}
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap">
+                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                sale.paymentStatus === 'paid' ? 'bg-green-100 text-green-800' :
+                                sale.paymentStatus === 'partial' ? 'bg-yellow-100 text-yellow-800' :
+                                'bg-red-100 text-red-800'
+                              }`}>
+                                {sale.paymentStatus}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
                       </tbody>
                     </table>
                   </div>
@@ -592,56 +605,60 @@ const SalesPurchases: React.FC = () => {
               </div>
             )}
 
-            {activeTab === 'freight' && (
+            {activeTab === 'purchases' && (
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Lorry Freight Management</h3>
-                {lorryFreights.length === 0 ? (
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Purchase Bills</h3>
+                {purchases.length === 0 ? (
                   <div className="text-center py-8">
-                    <Truck className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-600">No freight records yet.</p>
+                    <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-600">No purchase bills yet. Add your first purchase bill.</p>
                   </div>
                 ) : (
                   <div className="overflow-x-auto">
                     <table className="w-full">
                       <thead className="bg-gray-50">
                         <tr>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ACK Number</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Lorry</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Transporter</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quantity (MT)</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rate/MT</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Net Amount</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Bill No</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Vendor Name</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Amount</th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Balance</th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-200">
-                        {lorryFreights.map((freight) => (
-                          <tr key={freight.id} className="hover:bg-gray-50">
+                        {purchases.map((purchase) => (
+                          <tr key={purchase.id} className="hover:bg-gray-50">
                             <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-blue-600">
-                              {freight.ackNumber}
+                              {purchase.billNumber}
                             </td>
-                            <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                              {freight.lorryNumber}
+                            <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-600">
+                              {new Date(purchase.billDate).toLocaleDateString()}
                             </td>
-                            <td className="px-4 py-4 text-sm text-gray-900 max-w-xs truncate">
-                              {freight.transporterName}
+                            <td className="px-4 py-4 text-sm font-medium text-gray-900 max-w-xs">
+                              <div className="truncate">{purchase.vendorName}</div>
                             </td>
-                            <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                              {formatDecimal(freight.quantityMT, 2)}
-                            </td>
-                            <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                              {formatCurrency(freight.freightPerMT)}
+                            <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-600">
+                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                purchase.category === 'gst' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'
+                              }`}>
+                                {purchase.category.toUpperCase()}
+                              </span>
                             </td>
                             <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
-                              {formatCurrency(freight.netFreightAmount)}
+                              {formatCurrency(purchase.totalAmount)}
                             </td>
-                            <td className="px-4 py-4 whitespace-nowrap text-sm text-orange-600 font-medium">
-                              {formatCurrency(freight.balanceAmount)}
+                            <td className="px-4 py-4 whitespace-nowrap text-sm text-red-600 font-medium">
+                              {formatCurrency(purchase.balanceAmount)}
                             </td>
                             <td className="px-4 py-4 whitespace-nowrap">
-                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(freight.paymentStatus)}`}>
-                                {freight.paymentStatus.replace('-', ' ')}
+                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                purchase.paymentStatus === 'paid' ? 'bg-green-100 text-green-800' :
+                                purchase.paymentStatus === 'partial' ? 'bg-yellow-100 text-yellow-800' :
+                                'bg-red-100 text-red-800'
+                              }`}>
+                                {purchase.paymentStatus}
                               </span>
                             </td>
                           </tr>
@@ -659,7 +676,7 @@ const SalesPurchases: React.FC = () => {
                 {vendors.length === 0 ? (
                   <div className="text-center py-8">
                     <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-600">No vendors added yet.</p>
+                    <p className="text-gray-600">No vendors added yet. Add your first vendor.</p>
                   </div>
                 ) : (
                   <div className="overflow-x-auto">
@@ -676,13 +693,13 @@ const SalesPurchases: React.FC = () => {
                       <tbody className="divide-y divide-gray-200">
                         {vendors.map((vendor) => {
                           const vendorOutstanding = purchases
-                            .filter(p => p.vendorName === vendor.name)
-                            .reduce((sum, p) => sum + p.balanceAmount, 0);
+                            .filter(purchase => purchase.vendorName === vendor.name)
+                            .reduce((sum, purchase) => sum + purchase.balanceAmount, 0);
                           
                           return (
                             <tr key={vendor.id} className="hover:bg-gray-50">
-                              <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                {vendor.name}
+                              <td className="px-4 py-4 text-sm font-medium text-gray-900 max-w-xs">
+                                <div className="truncate">{vendor.name}</div>
                               </td>
                               <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-600">
                                 {vendor.phone}
@@ -714,156 +731,13 @@ const SalesPurchases: React.FC = () => {
             <div className="bg-white rounded-xl shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
               <div className="p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                  Add {activeTab === 'purchases' ? 'Purchase' : activeTab === 'sales' ? 'Sale' : activeTab === 'freight' ? 'Freight' : 'Vendor'}
+                  Add {activeTab === 'sales' ? 'Sales Invoice' : activeTab === 'purchases' ? 'Purchase Bill' : 'Vendor'}
                 </h3>
                 
-                {activeTab === 'purchases' && (
-                  <form onSubmit={handlePurchaseSubmit} className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Bill Number</label>
-                        <input
-                          type="text"
-                          value={purchaseForm.billNumber}
-                          onChange={(e) => setPurchaseForm({ ...purchaseForm, billNumber: e.target.value })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          required
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Bill Date</label>
-                        <input
-                          type="date"
-                          value={purchaseForm.billDate}
-                          onChange={(e) => setPurchaseForm({ ...purchaseForm, billDate: e.target.value })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          required
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Vendor Name</label>
-                        <input
-                          type="text"
-                          value={purchaseForm.vendorName}
-                          onChange={(e) => setPurchaseForm({ ...purchaseForm, vendorName: e.target.value })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          required
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
-                        <select
-                          value={purchaseForm.category}
-                          onChange={(e) => setPurchaseForm({ ...purchaseForm, category: e.target.value as 'gst' | 'cash' })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        >
-                          <option value="gst">GST Bill</option>
-                          <option value="cash">Cash Bill</option>
-                        </select>
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <label className="block text-sm font-medium text-gray-700">Items</label>
-                      {purchaseForm.items.map((item, index) => (
-                        <div key={index} className="grid grid-cols-5 gap-2">
-                          <input
-                            type="text"
-                            placeholder="Item name"
-                            value={item.itemName}
-                            onChange={(e) => {
-                              const newItems = [...purchaseForm.items];
-                              newItems[index].itemName = e.target.value;
-                              setPurchaseForm({ ...purchaseForm, items: newItems });
-                            }}
-                            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            required
-                          />
-                          <input
-                            type="number"
-                            placeholder="Quantity"
-                            value={item.quantity}
-                            onChange={(e) => {
-                              const newItems = [...purchaseForm.items];
-                              newItems[index].quantity = e.target.value;
-                              setPurchaseForm({ ...purchaseForm, items: newItems });
-                            }}
-                            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            required
-                          />
-                          <select
-                            value={item.unit}
-                            onChange={(e) => {
-                              const newItems = [...purchaseForm.items];
-                              newItems[index].unit = e.target.value;
-                              setPurchaseForm({ ...purchaseForm, items: newItems });
-                            }}
-                            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          >
-                            <option value="kg">kg</option>
-                            <option value="qtl">qtl</option>
-                            <option value="piece">piece</option>
-                            <option value="hour">hour</option>
-                          </select>
-                          <input
-                            type="number"
-                            placeholder="Rate"
-                            value={item.rate}
-                            onChange={(e) => {
-                              const newItems = [...purchaseForm.items];
-                              newItems[index].rate = e.target.value;
-                              setPurchaseForm({ ...purchaseForm, items: newItems });
-                            }}
-                            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            required
-                          />
-                          <select
-                            value={item.gstRate}
-                            onChange={(e) => {
-                              const newItems = [...purchaseForm.items];
-                              newItems[index].gstRate = e.target.value;
-                              setPurchaseForm({ ...purchaseForm, items: newItems });
-                            }}
-                            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          >
-                            <option value="0">0%</option>
-                            <option value="5">5%</option>
-                            <option value="12">12%</option>
-                            <option value="18">18%</option>
-                            <option value="28">28%</option>
-                          </select>
-                        </div>
-                      ))}
-                      <button
-                        type="button"
-                        onClick={addPurchaseItem}
-                        className="text-blue-600 hover:text-blue-800 text-sm"
-                      >
-                        + Add Item
-                      </button>
-                    </div>
-
-                    <div className="flex space-x-3 pt-4">
-                      <button
-                        type="submit"
-                        className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors duration-200"
-                      >
-                        Add Purchase
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setShowAddForm(false)}
-                        className="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-400 transition-colors duration-200"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </form>
-                )}
-
                 {activeTab === 'sales' && (
-                  <form onSubmit={handleSalesSubmit} className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <form onSubmit={handleSalesSubmit} className="space-y-6">
+                    {/* Basic Information */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Invoice Number</label>
                         <input
@@ -885,6 +759,19 @@ const SalesPurchases: React.FC = () => {
                         />
                       </div>
                       <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Payment Terms (Days)</label>
+                        <input
+                          type="number"
+                          value={salesForm.paymentTerms}
+                          onChange={(e) => setSalesForm({ ...salesForm, paymentTerms: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Party Information */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Party Name</label>
                         <input
                           type="text"
@@ -892,6 +779,24 @@ const SalesPurchases: React.FC = () => {
                           onChange={(e) => setSalesForm({ ...salesForm, partyName: e.target.value })}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                           required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Party GST Number</label>
+                        <input
+                          type="text"
+                          value={salesForm.partyGST}
+                          onChange={(e) => setSalesForm({ ...salesForm, partyGST: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Party Phone</label>
+                        <input
+                          type="tel"
+                          value={salesForm.partyPhone}
+                          onChange={(e) => setSalesForm({ ...salesForm, partyPhone: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         />
                       </div>
                       <div>
@@ -905,84 +810,162 @@ const SalesPurchases: React.FC = () => {
                       </div>
                     </div>
 
-                    <div className="space-y-2">
-                      <label className="block text-sm font-medium text-gray-700">Items</label>
-                      {salesForm.items.map((item, index) => (
-                        <div key={index} className="grid grid-cols-5 gap-2">
-                          <input
-                            type="text"
-                            placeholder="Item name"
-                            value={item.itemName}
-                            onChange={(e) => {
-                              const newItems = [...salesForm.items];
-                              newItems[index].itemName = e.target.value;
-                              setSalesForm({ ...salesForm, items: newItems });
-                            }}
-                            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            required
-                          />
-                          <input
-                            type="number"
-                            placeholder="Quantity"
-                            value={item.quantity}
-                            onChange={(e) => {
-                              const newItems = [...salesForm.items];
-                              newItems[index].quantity = e.target.value;
-                              setSalesForm({ ...salesForm, items: newItems });
-                            }}
-                            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            required
-                          />
-                          <select
-                            value={item.unit}
-                            onChange={(e) => {
-                              const newItems = [...salesForm.items];
-                              newItems[index].unit = e.target.value;
-                              setSalesForm({ ...salesForm, items: newItems });
-                            }}
-                            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          >
-                            <option value="qtl">qtl</option>
-                            <option value="kg">kg</option>
-                            <option value="bag">bag</option>
-                            <option value="piece">piece</option>
-                          </select>
-                          <input
-                            type="number"
-                            placeholder="Rate"
-                            value={item.rate}
-                            onChange={(e) => {
-                              const newItems = [...salesForm.items];
-                              newItems[index].rate = e.target.value;
-                              setSalesForm({ ...salesForm, items: newItems });
-                            }}
-                            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            required
-                          />
-                          <select
-                            value={item.gstRate}
-                            onChange={(e) => {
-                              const newItems = [...salesForm.items];
-                              newItems[index].gstRate = e.target.value;
-                              setSalesForm({ ...salesForm, items: newItems });
-                            }}
-                            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          >
-                            <option value="0">0%</option>
-                            <option value="5">5%</option>
-                            <option value="12">12%</option>
-                            <option value="18">18%</option>
-                            <option value="28">28%</option>
-                          </select>
-                        </div>
-                      ))}
-                      <button
-                        type="button"
-                        onClick={addSalesItem}
-                        className="text-blue-600 hover:text-blue-800 text-sm"
-                      >
-                        + Add Item
-                      </button>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Party Address</label>
+                      <textarea
+                        value={salesForm.partyAddress}
+                        onChange={(e) => setSalesForm({ ...salesForm, partyAddress: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        rows={2}
+                      />
+                    </div>
+
+                    {/* Items Section */}
+                    <div>
+                      <div className="flex items-center justify-between mb-4">
+                        <h4 className="text-md font-medium text-gray-900">Invoice Items</h4>
+                        <button
+                          type="button"
+                          onClick={addSalesItem}
+                          className="inline-flex items-center px-3 py-1 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700"
+                        >
+                          <Plus className="h-4 w-4 mr-1" />
+                          Add Item
+                        </button>
+                      </div>
+                      
+                      <div className="space-y-4">
+                        {salesForm.items.map((item, index) => (
+                          <div key={item.id} className="border border-gray-200 rounded-lg p-4">
+                            <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Item Type</label>
+                                <select
+                                  value={item.itemType}
+                                  onChange={(e) => updateSalesItem(item.id, 'itemType', e.target.value)}
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                >
+                                  <option value="by-product">By-Product</option>
+                                  <option value="service">Service</option>
+                                  <option value="other">Other</option>
+                                </select>
+                              </div>
+                              
+                              {item.itemType === 'by-product' ? (
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 mb-1">Select By-Product</label>
+                                  <select
+                                    value={item.byProductId}
+                                    onChange={(e) => {
+                                      updateSalesItem(item.id, 'byProductId', e.target.value);
+                                      const selectedProduct = byProducts.find(bp => bp.id === e.target.value);
+                                      if (selectedProduct) {
+                                        updateSalesItem(item.id, 'itemName', selectedProduct.name);
+                                        updateSalesItem(item.id, 'unit', 'qtl');
+                                      }
+                                    }}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    required={item.itemType === 'by-product'}
+                                  >
+                                    <option value="">Select By-Product</option>
+                                    {availableByProducts.map(product => (
+                                      <option key={product.id} value={product.id}>
+                                        {product.name} ({formatDecimal(product.quantity)} Qtl available)
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
+                              ) : (
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 mb-1">Item Name</label>
+                                  <input
+                                    type="text"
+                                    value={item.itemName}
+                                    onChange={(e) => updateSalesItem(item.id, 'itemName', e.target.value)}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    placeholder={item.itemType === 'service' ? 'Service name' : 'Item name'}
+                                    required
+                                  />
+                                </div>
+                              )}
+                              
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Quantity</label>
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  value={item.quantity}
+                                  onChange={(e) => updateSalesItem(item.id, 'quantity', e.target.value)}
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                  required
+                                />
+                              </div>
+                              
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Unit</label>
+                                <select
+                                  value={item.unit}
+                                  onChange={(e) => updateSalesItem(item.id, 'unit', e.target.value)}
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                  disabled={item.itemType === 'by-product' && item.byProductId}
+                                >
+                                  <option value="qtl">Quintals</option>
+                                  <option value="kg">Kilograms</option>
+                                  <option value="bag">Bags</option>
+                                  <option value="hour">Hours</option>
+                                  <option value="day">Days</option>
+                                  <option value="trip">Trips</option>
+                                  <option value="piece">Pieces</option>
+                                </select>
+                              </div>
+                              
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Rate (₹)</label>
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  value={item.rate}
+                                  onChange={(e) => updateSalesItem(item.id, 'rate', e.target.value)}
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                  required
+                                />
+                              </div>
+                              
+                              <div className="flex items-end">
+                                <button
+                                  type="button"
+                                  onClick={() => removeSalesItem(item.id)}
+                                  className="w-full px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+                                  disabled={salesForm.items.length === 1}
+                                >
+                                  <Trash2 className="h-4 w-4 mx-auto" />
+                                </button>
+                              </div>
+                            </div>
+                            
+                            <div className="mt-4">
+                              <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                              <input
+                                type="text"
+                                value={item.description}
+                                onChange={(e) => updateSalesItem(item.id, 'description', e.target.value)}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                placeholder="Item description or specifications"
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                      <textarea
+                        value={salesForm.notes}
+                        onChange={(e) => setSalesForm({ ...salesForm, notes: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        rows={3}
+                      />
                     </div>
 
                     <div className="flex space-x-3 pt-4">
@@ -990,7 +973,7 @@ const SalesPurchases: React.FC = () => {
                         type="submit"
                         className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors duration-200"
                       >
-                        Add Sale
+                        Create Sales Invoice
                       </button>
                       <button
                         type="button"
@@ -1003,94 +986,183 @@ const SalesPurchases: React.FC = () => {
                   </form>
                 )}
 
-                {activeTab === 'freight' && (
-                  <form onSubmit={handleFreightSubmit} className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {activeTab === 'purchases' && (
+                  <form onSubmit={handlePurchaseSubmit} className="space-y-6">
+                    {/* Basic Information */}
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Select Consignment</label>
-                        <select
-                          value={freightForm.consignmentId}
-                          onChange={(e) => setFreightForm({ ...freightForm, consignmentId: e.target.value })}
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Bill Number</label>
+                        <input
+                          type="text"
+                          value={purchaseForm.billNumber}
+                          onChange={(e) => setPurchaseForm({ ...purchaseForm, billNumber: e.target.value })}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                           required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Bill Date</label>
+                        <input
+                          type="date"
+                          value={purchaseForm.billDate}
+                          onChange={(e) => setPurchaseForm({ ...purchaseForm, billDate: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                        <select
+                          value={purchaseForm.category}
+                          onChange={(e) => setPurchaseForm({ ...purchaseForm, category: e.target.value as 'gst' | 'cash' })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         >
-                          <option value="">Select FCI Consignment</option>
-                          {availableConsignments.map(consignment => (
-                            <option key={consignment.id} value={consignment.id}>
-                              {consignment.ackNumber} - {consignment.lorryNumber}
-                            </option>
-                          ))}
+                          <option value="gst">GST Bill</option>
+                          <option value="cash">Cash Bill</option>
                         </select>
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Transporter Name</label>
-                        <input
-                          type="text"
-                          value={freightForm.transporterName}
-                          onChange={(e) => setFreightForm({ ...freightForm, transporterName: e.target.value })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          required
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Freight Per MT (₹)</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Payment Terms (Days)</label>
                         <input
                           type="number"
-                          step="0.01"
-                          value={freightForm.freightPerMT}
-                          onChange={(e) => setFreightForm({ ...freightForm, freightPerMT: e.target.value })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          required
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Advance Paid (₹)</label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={freightForm.advancePaid}
-                          onChange={(e) => setFreightForm({ ...freightForm, advancePaid: e.target.value })}
+                          value={purchaseForm.paymentTerms}
+                          onChange={(e) => setPurchaseForm({ ...purchaseForm, paymentTerms: e.target.value })}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         />
                       </div>
                     </div>
 
-                    <div className="space-y-2">
-                      <label className="block text-sm font-medium text-gray-700">Deductions</label>
-                      {freightForm.deductions.map((deduction, index) => (
-                        <div key={index} className="grid grid-cols-2 gap-2">
-                          <input
-                            type="text"
-                            placeholder="Deduction description"
-                            value={deduction.description}
-                            onChange={(e) => {
-                              const newDeductions = [...freightForm.deductions];
-                              newDeductions[index].description = e.target.value;
-                              setFreightForm({ ...freightForm, deductions: newDeductions });
-                            }}
-                            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          />
-                          <input
-                            type="number"
-                            step="0.01"
-                            placeholder="Amount"
-                            value={deduction.amount}
-                            onChange={(e) => {
-                              const newDeductions = [...freightForm.deductions];
-                              newDeductions[index].amount = e.target.value;
-                              setFreightForm({ ...freightForm, deductions: newDeductions });
-                            }}
-                            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          />
-                        </div>
-                      ))}
-                      <button
-                        type="button"
-                        onClick={addDeduction}
-                        className="text-blue-600 hover:text-blue-800 text-sm"
-                      >
-                        + Add Deduction
-                      </button>
+                    {/* Vendor Information */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Vendor Name</label>
+                        <input
+                          type="text"
+                          value={purchaseForm.vendorName}
+                          onChange={(e) => setPurchaseForm({ ...purchaseForm, vendorName: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Vendor GST Number</label>
+                        <input
+                          type="text"
+                          value={purchaseForm.vendorGST}
+                          onChange={(e) => setPurchaseForm({ ...purchaseForm, vendorGST: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Items Section */}
+                    <div>
+                      <div className="flex items-center justify-between mb-4">
+                        <h4 className="text-md font-medium text-gray-900">Purchase Items</h4>
+                        <button
+                          type="button"
+                          onClick={addPurchaseItem}
+                          className="inline-flex items-center px-3 py-1 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700"
+                        >
+                          <Plus className="h-4 w-4 mr-1" />
+                          Add Item
+                        </button>
+                      </div>
+                      
+                      <div className="space-y-4">
+                        {purchaseForm.items.map((item, index) => (
+                          <div key={item.id} className="border border-gray-200 rounded-lg p-4">
+                            <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Item Name</label>
+                                <input
+                                  type="text"
+                                  value={item.itemName}
+                                  onChange={(e) => updatePurchaseItem(item.id, 'itemName', e.target.value)}
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                  required
+                                />
+                              </div>
+                              
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Quantity</label>
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  value={item.quantity}
+                                  onChange={(e) => updatePurchaseItem(item.id, 'quantity', e.target.value)}
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                  required
+                                />
+                              </div>
+                              
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Unit</label>
+                                <select
+                                  value={item.unit}
+                                  onChange={(e) => updatePurchaseItem(item.id, 'unit', e.target.value)}
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                >
+                                  <option value="qtl">Quintals</option>
+                                  <option value="kg">Kilograms</option>
+                                  <option value="bag">Bags</option>
+                                  <option value="liter">Liters</option>
+                                  <option value="piece">Pieces</option>
+                                </select>
+                              </div>
+                              
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Rate (₹)</label>
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  value={item.rate}
+                                  onChange={(e) => updatePurchaseItem(item.id, 'rate', e.target.value)}
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                  required
+                                />
+                              </div>
+                              
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">GST %</label>
+                                <select
+                                  value={item.gstRate}
+                                  onChange={(e) => updatePurchaseItem(item.id, 'gstRate', e.target.value)}
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                >
+                                  <option value="0">0%</option>
+                                  <option value="5">5%</option>
+                                  <option value="12">12%</option>
+                                  <option value="18">18%</option>
+                                  <option value="28">28%</option>
+                                </select>
+                              </div>
+                              
+                              <div className="flex items-end">
+                                <button
+                                  type="button"
+                                  onClick={() => removePurchaseItem(item.id)}
+                                  className="w-full px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+                                  disabled={purchaseForm.items.length === 1}
+                                >
+                                  <Trash2 className="h-4 w-4 mx-auto" />
+                                </button>
+                              </div>
+                            </div>
+                            
+                            <div className="mt-4">
+                              <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                              <input
+                                type="text"
+                                value={item.description}
+                                onChange={(e) => updatePurchaseItem(item.id, 'description', e.target.value)}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                placeholder="Item description or specifications"
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     </div>
 
                     <div className="flex space-x-3 pt-4">
@@ -1098,7 +1170,7 @@ const SalesPurchases: React.FC = () => {
                         type="submit"
                         className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors duration-200"
                       >
-                        Add Freight
+                        Create Purchase Bill
                       </button>
                       <button
                         type="button"
@@ -1135,11 +1207,29 @@ const SalesPurchases: React.FC = () => {
                         />
                       </div>
                       <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                        <input
+                          type="email"
+                          value={vendorForm.email}
+                          onChange={(e) => setVendorForm({ ...vendorForm, email: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                      </div>
+                      <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">GST Number</label>
                         <input
                           type="text"
                           value={vendorForm.gstNumber}
                           onChange={(e) => setVendorForm({ ...vendorForm, gstNumber: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">PAN Number</label>
+                        <input
+                          type="text"
+                          value={vendorForm.panNumber}
+                          onChange={(e) => setVendorForm({ ...vendorForm, panNumber: e.target.value })}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         />
                       </div>
@@ -1161,6 +1251,15 @@ const SalesPurchases: React.FC = () => {
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         rows={3}
                         required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                      <textarea
+                        value={vendorForm.notes}
+                        onChange={(e) => setVendorForm({ ...vendorForm, notes: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        rows={3}
                       />
                     </div>
                     <div className="flex space-x-3 pt-4">

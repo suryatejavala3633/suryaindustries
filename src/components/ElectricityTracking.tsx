@@ -49,7 +49,7 @@ const ElectricityTracking: React.FC<ElectricityTrackingProps> = ({ onBack }) => 
   // HT Bill specific data for Service No. SGR1469
   const [htBillData, setHtBillData] = useState({
     serviceNumber: 'SGR1469',
-    contractDemand: 100, // kW
+    contractDemand: 190, // kVA
     fixedCharges: 0,
     energyCharges: 0,
     demandCharges: 0,
@@ -113,16 +113,6 @@ const ElectricityTracking: React.FC<ElectricityTrackingProps> = ({ onBack }) => 
     [totalBillAmount, totalKwh]
   );
 
-  // Calculate live bill amount based on last bill's rate
-  const liveBillAmount = useMemo(() => {
-    if (electricityReadings.length === 0 || liveReadings.kwh === 0) return 0;
-    
-    const lastReading = electricityReadings[electricityReadings.length - 1];
-    const ratePerUnit = lastReading.billAmount / lastReading.kwh;
-    
-    return liveReadings.kwh * ratePerUnit;
-  }, [electricityReadings, liveReadings.kwh]);
-
   // Calculate live power factor
   const livePowerFactor = useMemo(() => 
     liveReadings.kvah > 0 ? liveReadings.kwh / liveReadings.kvah : 0, 
@@ -134,12 +124,12 @@ const ElectricityTracking: React.FC<ElectricityTrackingProps> = ({ onBack }) => 
     if (!liveReadings.kwh || !liveReadings.kvah) return htBillData;
 
     // Basic HT tariff calculation for Telangana (approximate)
-    const demandCharges = liveReadings.rmd * 400; // ₹400 per kW
-    const energyCharges = liveReadings.kwh * 6.5; // ₹6.5 per unit
-    const fixedCharges = 1500; // Monthly fixed charges
-    const fuelSurcharge = liveReadings.kwh * 0.5; // Fuel surcharge
-    const electricityDuty = (energyCharges + demandCharges) * 0.16; // 16% duty
-    const additionalCharges = 200; // Meter rent, etc.
+    const demandCharges = liveReadings.rmd * 500; // ₹500 per kVA
+    const energyCharges = liveReadings.kwh * 7.65; // ₹7.65 per unit
+    const fixedCharges = 2000; // Monthly fixed charges
+    const fuelSurcharge = 0; // No fuel surcharge in current bill
+    const electricityDuty = liveReadings.kwh * 0.06; // 6 paise per unit
+    const additionalCharges = 0; // Additional charges
     
     const totalAmount = demandCharges + energyCharges + fixedCharges + fuelSurcharge + electricityDuty + additionalCharges;
 
@@ -226,75 +216,113 @@ const ElectricityTracking: React.FC<ElectricityTrackingProps> = ({ onBack }) => 
 
   const handleHTMLBillUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (file && file.type === 'text/html') {
+    if (file && (file.type === 'text/html' || file.name.endsWith('.html'))) {
       const reader = new FileReader();
       reader.onload = (e) => {
         const htmlContent = e.target?.result as string;
         parseHTMLBill(htmlContent);
       };
       reader.readAsText(file);
+    } else {
+      alert('Please select a valid HTML file');
     }
   };
 
   const parseHTMLBill = (htmlContent: string) => {
-    // Create a temporary DOM element to parse HTML
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(htmlContent, 'text/html');
-    
-    // Extract bill data (this will need to be customized based on actual HTML structure)
     try {
-      // Look for common patterns in electricity bills
-      const serviceNumberElement = doc.querySelector('[data-service], .service-number, #service-number');
-      const kwhElement = doc.querySelector('[data-kwh], .kwh-reading, #kwh');
-      const kvahElement = doc.querySelector('[data-kvah], .kvah-reading, #kvah');
-      const rmdElement = doc.querySelector('[data-rmd], .rmd-reading, #rmd');
-      const billAmountElement = doc.querySelector('[data-amount], .bill-amount, #total-amount');
+      // Create a temporary DOM element to parse HTML
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(htmlContent, 'text/html');
       
-      // Extract values and populate form
-      if (kwhElement) {
-        const kwhValue = extractNumber(kwhElement.textContent || '');
-        if (kwhValue) setLiveReadingForm(prev => ({ ...prev, kwh: kwhValue.toString() }));
-      }
-      
-      if (kvahElement) {
-        const kvahValue = extractNumber(kvahElement.textContent || '');
-        if (kvahValue) setLiveReadingForm(prev => ({ ...prev, kvah: kvahValue.toString() }));
-      }
-      
-      if (rmdElement) {
-        const rmdValue = extractNumber(rmdElement.textContent || '');
-        if (rmdValue) setLiveReadingForm(prev => ({ ...prev, rmd: rmdValue.toString() }));
-      }
-      
-      // Auto-populate reading form with extracted data
-      if (billAmountElement) {
-        const billAmount = extractNumber(billAmountElement.textContent || '');
-        if (billAmount) {
-          setReadingForm(prev => ({
-            ...prev,
-            billAmount: billAmount.toString(),
-            readingDate: new Date().toISOString().split('T')[0],
-            billPeriod: new Date().toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })
-          }));
+      // Extract bill data from the HTML structure
+      let extractedData = {
+        kwh: 0,
+        kvah: 0,
+        rmd: 0,
+        billAmount: 0,
+        billPeriod: '',
+        billDate: ''
+      };
+
+      // Look for consumption data in table rows
+      const rows = doc.querySelectorAll('tr');
+      rows.forEach(row => {
+        const cells = row.querySelectorAll('td');
+        if (cells.length >= 2) {
+          const firstCell = cells[0].textContent?.trim().toLowerCase() || '';
+          
+          // Extract total consumption
+          if (firstCell.includes('total consumption')) {
+            const kwhCell = cells[1]?.textContent?.trim();
+            const kvahCell = cells[2]?.textContent?.trim();
+            const kvaCell = cells[3]?.textContent?.trim();
+            
+            if (kwhCell) extractedData.kwh = parseFloat(kwhCell.replace(/,/g, '')) || 0;
+            if (kvahCell) extractedData.kvah = parseFloat(kvahCell.replace(/,/g, '')) || 0;
+            if (kvaCell) extractedData.rmd = parseFloat(kvaCell.replace(/,/g, '')) || 0;
+          }
+          
+          // Extract bill amount
+          if (firstCell.includes('total amount payable') || firstCell.includes('net bill amount')) {
+            const amountCell = cells[1]?.textContent?.trim();
+            if (amountCell) {
+              extractedData.billAmount = parseFloat(amountCell.replace(/[^\d.]/g, '')) || 0;
+            }
+          }
+        }
+      });
+
+      // Extract bill period from header
+      const billHeader = doc.querySelector('font');
+      if (billHeader) {
+        const headerText = billHeader.textContent || '';
+        const monthMatch = headerText.match(/Month of\s+(\w+\s+\d{4})/i);
+        if (monthMatch) {
+          extractedData.billPeriod = monthMatch[1];
+        }
+        
+        const dateMatch = headerText.match(/Date:\s+(\d{2}-\w{3}-\d{2})/i);
+        if (dateMatch) {
+          // Convert date format from DD-MMM-YY to YYYY-MM-DD
+          const dateStr = dateMatch[1];
+          const date = new Date(dateStr);
+          if (!isNaN(date.getTime())) {
+            extractedData.billDate = date.toISOString().split('T')[0];
+          }
         }
       }
-      
-      alert('HTML bill data parsed successfully! Please review and update the readings.');
+
+      // Auto-populate forms with extracted data
+      if (extractedData.kwh > 0 || extractedData.kvah > 0) {
+        setLiveReadingForm({
+          kwh: extractedData.kwh.toString(),
+          kvah: extractedData.kvah.toString(),
+          rmd: extractedData.rmd.toString()
+        });
+        
+        setReadingForm(prev => ({
+          ...prev,
+          kwh: extractedData.kwh.toString(),
+          kvah: extractedData.kvah.toString(),
+          rmd: extractedData.rmd.toString(),
+          billAmount: extractedData.billAmount.toString(),
+          billPeriod: extractedData.billPeriod,
+          readingDate: extractedData.billDate || new Date().toISOString().split('T')[0]
+        }));
+        
+        alert('HTML bill data parsed successfully! Please review and save the readings.');
+      } else {
+        alert('Could not extract electricity data from the HTML file. Please check the file format.');
+      }
     } catch (error) {
       console.error('Error parsing HTML bill:', error);
       alert('Error parsing HTML bill. Please check the file format.');
     }
   };
 
-  const extractNumber = (text: string): number | null => {
-    const match = text.replace(/[^\d.-]/g, '');
-    const number = parseFloat(match);
-    return isNaN(number) ? null : number;
-  };
-
   const exportElectricityData = () => {
     const csvContent = [
-      ['Date', 'KWH', 'KVAH', 'RMD (kW)', 'Power Factor', 'Bill Amount', 'Bill Period', 'Notes'],
+      ['Date', 'KWH', 'KVAH', 'RMD (kVA)', 'Power Factor', 'Bill Amount', 'Bill Period', 'Notes'],
       ...electricityReadings.map(reading => [
         reading.readingDate,
         reading.kwh,
@@ -419,7 +447,7 @@ const ElectricityTracking: React.FC<ElectricityTrackingProps> = ({ onBack }) => 
                         <span className="font-semibold">{formatDecimal(liveReadings.kvah)}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-gray-600">RMD (kW):</span>
+                        <span className="text-gray-600">RMD (kVA):</span>
                         <span className="font-semibold">{formatDecimal(liveReadings.rmd)}</span>
                       </div>
                       <div className="flex justify-between">
@@ -465,7 +493,7 @@ const ElectricityTracking: React.FC<ElectricityTrackingProps> = ({ onBack }) => 
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">RMD (kW)</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">RMD (kVA)</label>
                     <input
                       type="number"
                       step="0.01"
@@ -499,10 +527,6 @@ const ElectricityTracking: React.FC<ElectricityTrackingProps> = ({ onBack }) => 
                   <div className="flex justify-between">
                     <span className="text-gray-600">Demand Charges:</span>
                     <span className="font-semibold">{formatCurrency(calculateCurrentCharges.demandCharges)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Fuel Surcharge:</span>
-                    <span className="font-semibold">{formatCurrency(calculateCurrentCharges.fuelSurcharge)}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Electricity Duty:</span>
@@ -542,7 +566,7 @@ const ElectricityTracking: React.FC<ElectricityTrackingProps> = ({ onBack }) => 
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">KWH</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">KVAH</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Power Factor</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">RMD (kW)</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">RMD (kVA)</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Bill Amount</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Notes</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
@@ -760,7 +784,7 @@ const ElectricityTracking: React.FC<ElectricityTrackingProps> = ({ onBack }) => 
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        RMD (kW)
+                        RMD (kVA)
                       </label>
                       <input
                         type="number"
