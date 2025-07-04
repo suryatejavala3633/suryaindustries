@@ -1,25 +1,23 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Plus, Download, Edit, Save, X, Trash2, Truck, AlertTriangle, CheckCircle, Clock, FileText, IndianRupee, Calendar, Package, Users } from 'lucide-react';
-import { Purchase, PurchasePayment, SalesRecord, SalesPayment, Vendor, LorryFreight, FCIConsignment } from '../types';
+import { Plus, Download, Edit, Save, X, Trash2, FileText, Users, IndianRupee, Calendar, AlertCircle, Truck, Package } from 'lucide-react';
+import { Purchase, PurchasePayment, SalesRecord, SalesPayment, Vendor, FCIConsignment, LorryFreight } from '../types';
 import { formatCurrency, formatDecimal, calculateDaysDue } from '../utils/calculations';
 import { 
   savePurchases, loadPurchases, savePurchasePayments, loadPurchasePayments,
   saveSalesRecords, loadSalesRecords, saveSalesPayments, loadSalesPayments,
-  saveVendors, loadVendors, saveLorryFreights, loadLorryFreights,
-  loadFCIConsignments
+  saveVendors, loadVendors, loadFCIConsignments, saveLorryFreights, loadLorryFreights
 } from '../utils/dataStorage';
 import StatsCard from './StatsCard';
 
 const SalesPurchases: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'purchases' | 'sales' | 'lorry-freight' | 'vendors'>('purchases');
+  const [activeTab, setActiveTab] = useState<'purchases' | 'sales' | 'freight' | 'vendors'>('purchases');
   const [purchases, setPurchases] = useState<Purchase[]>([]);
   const [purchasePayments, setPurchasePayments] = useState<PurchasePayment[]>([]);
   const [salesRecords, setSalesRecords] = useState<SalesRecord[]>([]);
   const [salesPayments, setSalesPayments] = useState<SalesPayment[]>([]);
   const [vendors, setVendors] = useState<Vendor[]>([]);
-  const [lorryFreights, setLorryFreights] = useState<LorryFreight[]>([]);
   const [fciConsignments, setFciConsignments] = useState<FCIConsignment[]>([]);
-  
+  const [lorryFreights, setLorryFreights] = useState<LorryFreight[]>([]);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingItem, setEditingItem] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
@@ -34,8 +32,8 @@ const SalesPurchases: React.FC = () => {
     vendorPhone: '',
     category: 'gst' as 'gst' | 'cash',
     paymentTerms: '30',
-    notes: '',
-    items: [{ id: '1', itemName: '', description: '', quantity: '', unit: 'kg', rate: '', gstRate: '18', amount: 0, gstAmount: 0, totalAmount: 0 }]
+    items: [{ itemName: '', quantity: '', unit: 'kg', rate: '', gstRate: '18' }],
+    notes: ''
   });
 
   const [salesForm, setSalesForm] = useState({
@@ -47,17 +45,7 @@ const SalesPurchases: React.FC = () => {
     partyPhone: '',
     lorryNumber: '',
     paymentTerms: '30',
-    notes: '',
-    items: [{ id: '1', itemName: '', description: '', quantity: '', unit: 'qtl', rate: '', gstRate: '5', amount: 0, gstAmount: 0, totalAmount: 0 }]
-  });
-
-  const [lorryFreightForm, setLorryFreightForm] = useState({
-    consignmentId: '',
-    transporterName: '',
-    freightPerMT: '',
-    advancePaid: '',
-    deductions: [{ id: '1', description: '', amount: '' }],
-    paymentMethod: 'cash' as 'cash' | 'cheque' | 'bank-transfer' | 'upi' | 'other',
+    items: [{ itemName: '', quantity: '', unit: 'qtl', rate: '', gstRate: '5' }],
     notes: ''
   });
 
@@ -72,6 +60,15 @@ const SalesPurchases: React.FC = () => {
     notes: ''
   });
 
+  const [freightForm, setFreightForm] = useState({
+    consignmentId: '',
+    transporterName: '',
+    freightPerMT: '',
+    advancePaid: '',
+    deductions: [{ description: '', amount: '' }],
+    notes: ''
+  });
+
   // Load data on component mount
   useEffect(() => {
     setPurchases(loadPurchases());
@@ -79,8 +76,8 @@ const SalesPurchases: React.FC = () => {
     setSalesRecords(loadSalesRecords());
     setSalesPayments(loadSalesPayments());
     setVendors(loadVendors());
-    setLorryFreights(loadLorryFreights());
     setFciConsignments(loadFCIConsignments());
+    setLorryFreights(loadLorryFreights());
   }, []);
 
   // Auto-save data when state changes
@@ -109,51 +106,55 @@ const SalesPurchases: React.FC = () => {
   }, [lorryFreights]);
 
   // Calculate summary stats
-  const totalPurchases = useMemo(() => purchases.reduce((sum, purchase) => sum + purchase.totalAmount, 0), [purchases]);
-  const totalPurchasesPaid = useMemo(() => purchases.reduce((sum, purchase) => sum + purchase.paidAmount, 0), [purchases]);
-  const totalPurchasesOutstanding = useMemo(() => purchases.reduce((sum, purchase) => sum + purchase.balanceAmount, 0), [purchases]);
-  const overduePurchases = useMemo(() => purchases.filter(p => p.balanceAmount > 0 && calculateDaysDue(p.dueDate) > 0).length, [purchases]);
+  const totalPurchases = useMemo(() => purchases.reduce((sum, p) => sum + p.totalAmount, 0), [purchases]);
+  const totalSales = useMemo(() => salesRecords.reduce((sum, s) => sum + s.totalAmount, 0), [salesRecords]);
+  const purchaseOutstanding = useMemo(() => purchases.reduce((sum, p) => sum + p.balanceAmount, 0), [purchases]);
+  const salesOutstanding = useMemo(() => salesRecords.reduce((sum, s) => sum + s.balanceAmount, 0), [salesRecords]);
 
-  const totalSales = useMemo(() => salesRecords.reduce((sum, sale) => sum + sale.totalAmount, 0), [salesRecords]);
-  const totalSalesReceived = useMemo(() => salesRecords.reduce((sum, sale) => sum + sale.paidAmount, 0), [salesRecords]);
-  const totalSalesOutstanding = useMemo(() => salesRecords.reduce((sum, sale) => sum + sale.balanceAmount, 0), [salesRecords]);
-  const overdueSales = useMemo(() => salesRecords.filter(s => s.balanceAmount > 0 && calculateDaysDue(s.dueDate) > 0).length, [salesRecords]);
+  // Get overdue items
+  const overduePurchases = useMemo(() => 
+    purchases.filter(p => p.balanceAmount > 0 && calculateDaysDue(p.dueDate) > 0), 
+    [purchases]
+  );
+  
+  const overdueSales = useMemo(() => 
+    salesRecords.filter(s => s.balanceAmount > 0 && calculateDaysDue(s.dueDate) > 0), 
+    [salesRecords]
+  );
 
-  const totalFreightAmount = useMemo(() => lorryFreights.reduce((sum, freight) => sum + freight.grossFreightAmount, 0), [lorryFreights]);
-  const totalFreightPaid = useMemo(() => lorryFreights.reduce((sum, freight) => sum + freight.advancePaid, 0), [lorryFreights]);
-  const totalFreightOutstanding = useMemo(() => lorryFreights.reduce((sum, freight) => sum + freight.balanceAmount, 0), [lorryFreights]);
-
-  // Available FCI consignments for lorry freight
-  const availableConsignments = useMemo(() => {
-    const usedConsignmentIds = lorryFreights.map(f => f.consignmentId);
-    return fciConsignments.filter(c => !usedConsignmentIds.includes(c.id));
-  }, [fciConsignments, lorryFreights]);
-
-  // Calculate item totals
-  const calculateItemTotals = (items: any[]) => {
-    return items.map(item => {
-      const quantity = parseFloat(item.quantity) || 0;
-      const rate = parseFloat(item.rate) || 0;
-      const gstRate = parseFloat(item.gstRate) || 0;
-      
-      const amount = quantity * rate;
-      const gstAmount = (amount * gstRate) / 100;
-      const totalAmount = amount + gstAmount;
-      
-      return { ...item, amount, gstAmount, totalAmount };
-    });
-  };
+  // Available consignments for freight
+  const availableConsignments = useMemo(() => 
+    fciConsignments.filter(c => !lorryFreights.some(f => f.consignmentId === c.id)), 
+    [fciConsignments, lorryFreights]
+  );
 
   const handlePurchaseSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    const itemsWithTotals = calculateItemTotals(purchaseForm.items);
-    const subtotal = itemsWithTotals.reduce((sum, item) => sum + item.amount, 0);
-    const gstAmount = itemsWithTotals.reduce((sum, item) => sum + item.gstAmount, 0);
+    const items = purchaseForm.items.map(item => {
+      const quantity = parseFloat(item.quantity);
+      const rate = parseFloat(item.rate);
+      const gstRate = parseFloat(item.gstRate);
+      const amount = quantity * rate;
+      const gstAmount = (amount * gstRate) / 100;
+      
+      return {
+        id: Date.now().toString() + Math.random(),
+        itemName: item.itemName,
+        description: '',
+        quantity,
+        unit: item.unit,
+        rate,
+        gstRate,
+        amount,
+        gstAmount,
+        totalAmount: amount + gstAmount
+      };
+    });
+
+    const subtotal = items.reduce((sum, item) => sum + item.amount, 0);
+    const gstAmount = items.reduce((sum, item) => sum + item.gstAmount, 0);
     const totalAmount = subtotal + gstAmount;
-    
-    const dueDate = new Date(purchaseForm.billDate);
-    dueDate.setDate(dueDate.getDate() + parseInt(purchaseForm.paymentTerms));
 
     const newPurchase: Purchase = {
       id: Date.now().toString(),
@@ -163,7 +164,7 @@ const SalesPurchases: React.FC = () => {
       vendorGST: purchaseForm.vendorGST,
       vendorAddress: purchaseForm.vendorAddress,
       vendorPhone: purchaseForm.vendorPhone,
-      items: itemsWithTotals,
+      items,
       subtotal,
       gstAmount,
       totalAmount,
@@ -171,16 +172,23 @@ const SalesPurchases: React.FC = () => {
       balanceAmount: totalAmount,
       paymentStatus: 'pending',
       paymentTerms: parseInt(purchaseForm.paymentTerms),
-      dueDate: dueDate.toISOString().split('T')[0],
+      dueDate: new Date(new Date(purchaseForm.billDate).getTime() + parseInt(purchaseForm.paymentTerms) * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
       category: purchaseForm.category,
       notes: purchaseForm.notes
     };
 
     setPurchases([...purchases, newPurchase]);
     setPurchaseForm({
-      billNumber: '', billDate: '', vendorName: '', vendorGST: '', vendorAddress: '', vendorPhone: '',
-      category: 'gst', paymentTerms: '30', notes: '',
-      items: [{ id: '1', itemName: '', description: '', quantity: '', unit: 'kg', rate: '', gstRate: '18', amount: 0, gstAmount: 0, totalAmount: 0 }]
+      billNumber: '',
+      billDate: '',
+      vendorName: '',
+      vendorGST: '',
+      vendorAddress: '',
+      vendorPhone: '',
+      category: 'gst',
+      paymentTerms: '30',
+      items: [{ itemName: '', quantity: '', unit: 'kg', rate: '', gstRate: '18' }],
+      notes: ''
     });
     setShowAddForm(false);
   };
@@ -188,13 +196,30 @@ const SalesPurchases: React.FC = () => {
   const handleSalesSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    const itemsWithTotals = calculateItemTotals(salesForm.items);
-    const subtotal = itemsWithTotals.reduce((sum, item) => sum + item.amount, 0);
-    const gstAmount = itemsWithTotals.reduce((sum, item) => sum + item.gstAmount, 0);
+    const items = salesForm.items.map(item => {
+      const quantity = parseFloat(item.quantity);
+      const rate = parseFloat(item.rate);
+      const gstRate = parseFloat(item.gstRate);
+      const amount = quantity * rate;
+      const gstAmount = (amount * gstRate) / 100;
+      
+      return {
+        id: Date.now().toString() + Math.random(),
+        itemName: item.itemName,
+        description: '',
+        quantity,
+        unit: item.unit,
+        rate,
+        gstRate,
+        amount,
+        gstAmount,
+        totalAmount: amount + gstAmount
+      };
+    });
+
+    const subtotal = items.reduce((sum, item) => sum + item.amount, 0);
+    const gstAmount = items.reduce((sum, item) => sum + item.gstAmount, 0);
     const totalAmount = subtotal + gstAmount;
-    
-    const dueDate = new Date(salesForm.invoiceDate);
-    dueDate.setDate(dueDate.getDate() + parseInt(salesForm.paymentTerms));
 
     const newSale: SalesRecord = {
       id: Date.now().toString(),
@@ -205,7 +230,7 @@ const SalesPurchases: React.FC = () => {
       partyAddress: salesForm.partyAddress,
       partyPhone: salesForm.partyPhone,
       lorryNumber: salesForm.lorryNumber,
-      items: itemsWithTotals,
+      items,
       subtotal,
       gstAmount,
       totalAmount,
@@ -213,61 +238,22 @@ const SalesPurchases: React.FC = () => {
       balanceAmount: totalAmount,
       paymentStatus: 'pending',
       paymentTerms: parseInt(salesForm.paymentTerms),
-      dueDate: dueDate.toISOString().split('T')[0],
+      dueDate: new Date(new Date(salesForm.invoiceDate).getTime() + parseInt(salesForm.paymentTerms) * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
       notes: salesForm.notes
     };
 
     setSalesRecords([...salesRecords, newSale]);
     setSalesForm({
-      invoiceNumber: '', invoiceDate: '', partyName: '', partyGST: '', partyAddress: '', partyPhone: '',
-      lorryNumber: '', paymentTerms: '30', notes: '',
-      items: [{ id: '1', itemName: '', description: '', quantity: '', unit: 'qtl', rate: '', gstRate: '5', amount: 0, gstAmount: 0, totalAmount: 0 }]
-    });
-    setShowAddForm(false);
-  };
-
-  const handleLorryFreightSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    const selectedConsignment = fciConsignments.find(c => c.id === lorryFreightForm.consignmentId);
-    if (!selectedConsignment) return;
-
-    const quantityMT = selectedConsignment.riceQuantity / 10; // Convert quintals to MT
-    const freightPerMT = parseFloat(lorryFreightForm.freightPerMT);
-    const grossFreightAmount = quantityMT * freightPerMT;
-    const advancePaid = parseFloat(lorryFreightForm.advancePaid) || 0;
-    
-    const deductions = lorryFreightForm.deductions
-      .filter(d => d.description && d.amount)
-      .map(d => ({ ...d, amount: parseFloat(d.amount) }));
-    
-    const totalDeductions = deductions.reduce((sum, d) => sum + d.amount, 0);
-    const netFreightAmount = grossFreightAmount - totalDeductions;
-    const balanceAmount = netFreightAmount - advancePaid;
-
-    const newLorryFreight: LorryFreight = {
-      id: Date.now().toString(),
-      consignmentId: lorryFreightForm.consignmentId,
-      ackNumber: selectedConsignment.ackNumber,
-      lorryNumber: selectedConsignment.lorryNumber || '',
-      transporterName: lorryFreightForm.transporterName,
-      quantityMT,
-      freightPerMT,
-      grossFreightAmount,
-      deductions,
-      netFreightAmount,
-      advancePaid,
-      balanceAmount,
-      dispatchDate: selectedConsignment.consignmentDate,
-      paymentStatus: balanceAmount <= 0 ? 'fully-paid' : advancePaid > 0 ? 'advance-paid' : 'pending',
-      notes: lorryFreightForm.notes
-    };
-
-    setLorryFreights([...lorryFreights, newLorryFreight]);
-    setLorryFreightForm({
-      consignmentId: '', transporterName: '', freightPerMT: '', advancePaid: '',
-      deductions: [{ id: '1', description: '', amount: '' }],
-      paymentMethod: 'cash', notes: ''
+      invoiceNumber: '',
+      invoiceDate: '',
+      partyName: '',
+      partyGST: '',
+      partyAddress: '',
+      partyPhone: '',
+      lorryNumber: '',
+      paymentTerms: '30',
+      items: [{ itemName: '', quantity: '', unit: 'qtl', rate: '', gstRate: '5' }],
+      notes: ''
     });
     setShowAddForm(false);
   };
@@ -290,65 +276,110 @@ const SalesPurchases: React.FC = () => {
 
     setVendors([...vendors, newVendor]);
     setVendorForm({
-      name: '', address: '', phone: '', email: '', gstNumber: '', panNumber: '',
-      paymentTerms: '30', notes: ''
+      name: '',
+      address: '',
+      phone: '',
+      email: '',
+      gstNumber: '',
+      panNumber: '',
+      paymentTerms: '30',
+      notes: ''
+    });
+    setShowAddForm(false);
+  };
+
+  const handleFreightSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    const consignment = fciConsignments.find(c => c.id === freightForm.consignmentId);
+    if (!consignment) return;
+
+    const quantityMT = (consignment.riceQuantity + (consignment.frkQuantity / 100)) / 10; // Convert to MT
+    const freightPerMT = parseFloat(freightForm.freightPerMT);
+    const grossFreightAmount = quantityMT * freightPerMT;
+    
+    const deductions = freightForm.deductions
+      .filter(d => d.description && d.amount)
+      .map(d => ({
+        id: Date.now().toString() + Math.random(),
+        description: d.description,
+        amount: parseFloat(d.amount)
+      }));
+    
+    const totalDeductions = deductions.reduce((sum, d) => sum + d.amount, 0);
+    const netFreightAmount = grossFreightAmount - totalDeductions;
+    const advancePaid = parseFloat(freightForm.advancePaid) || 0;
+    const balanceAmount = netFreightAmount - advancePaid;
+
+    const newFreight: LorryFreight = {
+      id: Date.now().toString(),
+      consignmentId: consignment.id,
+      ackNumber: consignment.ackNumber,
+      lorryNumber: consignment.lorryNumber || '',
+      transporterName: freightForm.transporterName,
+      quantityMT,
+      freightPerMT,
+      grossFreightAmount,
+      deductions,
+      netFreightAmount,
+      advancePaid,
+      balanceAmount,
+      dispatchDate: consignment.consignmentDate,
+      paymentStatus: balanceAmount <= 0 ? 'fully-paid' : advancePaid > 0 ? 'advance-paid' : 'pending',
+      notes: freightForm.notes
+    };
+
+    setLorryFreights([...lorryFreights, newFreight]);
+    setFreightForm({
+      consignmentId: '',
+      transporterName: '',
+      freightPerMT: '',
+      advancePaid: '',
+      deductions: [{ description: '', amount: '' }],
+      notes: ''
     });
     setShowAddForm(false);
   };
 
   const addPurchaseItem = () => {
-    const newItem = {
-      id: Date.now().toString(),
-      itemName: '', description: '', quantity: '', unit: 'kg', rate: '', gstRate: '18',
-      amount: 0, gstAmount: 0, totalAmount: 0
-    };
-    setPurchaseForm({ ...purchaseForm, items: [...purchaseForm.items, newItem] });
+    setPurchaseForm({
+      ...purchaseForm,
+      items: [...purchaseForm.items, { itemName: '', quantity: '', unit: 'kg', rate: '', gstRate: '18' }]
+    });
   };
 
   const addSalesItem = () => {
-    const newItem = {
-      id: Date.now().toString(),
-      itemName: '', description: '', quantity: '', unit: 'qtl', rate: '', gstRate: '5',
-      amount: 0, gstAmount: 0, totalAmount: 0
-    };
-    setSalesForm({ ...salesForm, items: [...salesForm.items, newItem] });
+    setSalesForm({
+      ...salesForm,
+      items: [...salesForm.items, { itemName: '', quantity: '', unit: 'qtl', rate: '', gstRate: '5' }]
+    });
   };
 
   const addDeduction = () => {
-    const newDeduction = { id: Date.now().toString(), description: '', amount: '' };
-    setLorryFreightForm({ ...lorryFreightForm, deductions: [...lorryFreightForm.deductions, newDeduction] });
+    setFreightForm({
+      ...freightForm,
+      deductions: [...freightForm.deductions, { description: '', amount: '' }]
+    });
   };
 
-  const getPaymentStatusColor = (status: string, dueDate: string, balanceAmount: number) => {
-    if (balanceAmount <= 0) return 'bg-green-100 text-green-800 border-green-200';
-    if (calculateDaysDue(dueDate) > 0) return 'bg-red-100 text-red-800 border-red-200';
-    return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-  };
-
-  const getPaymentStatusIcon = (status: string, dueDate: string, balanceAmount: number) => {
-    if (balanceAmount <= 0) return <CheckCircle className="h-4 w-4" />;
-    if (calculateDaysDue(dueDate) > 0) return <AlertTriangle className="h-4 w-4" />;
-    return <Clock className="h-4 w-4" />;
-  };
-
-  const deleteItem = (id: string) => {
-    if (activeTab === 'purchases') {
-      setPurchases(purchases.filter(p => p.id !== id));
-    } else if (activeTab === 'sales') {
-      setSalesRecords(salesRecords.filter(s => s.id !== id));
-    } else if (activeTab === 'lorry-freight') {
-      setLorryFreights(lorryFreights.filter(f => f.id !== id));
-    } else if (activeTab === 'vendors') {
-      setVendors(vendors.filter(v => v.id !== id));
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'paid':
+      case 'fully-paid':
+        return 'bg-green-100 text-green-800 border-green-200';
+      case 'partial':
+      case 'advance-paid':
+        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      default:
+        return 'bg-red-100 text-red-800 border-red-200';
     }
-    setShowDeleteConfirm(null);
   };
 
   const tabs = [
     { id: 'purchases', label: 'Purchases', icon: FileText },
     { id: 'sales', label: 'Sales', icon: IndianRupee },
-    { id: 'lorry-freight', label: 'Lorry Freight', icon: Truck },
-    { id: 'vendors', label: 'Vendors', icon: Package }
+    { id: 'freight', label: 'Lorry Freight', icon: Truck },
+    { id: 'vendors', label: 'Vendors', icon: Users }
   ];
 
   return (
@@ -358,138 +389,47 @@ const SalesPurchases: React.FC = () => {
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Sales & Purchases</h1>
-            <p className="text-gray-600 mt-2">Manage sales, purchases, lorry freight and vendor relationships</p>
+            <p className="text-gray-600 mt-2">Manage sales, purchases, freight and vendor relationships</p>
           </div>
           <button
             onClick={() => setShowAddForm(true)}
             className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-emerald-500 to-blue-600 text-white text-sm font-medium rounded-lg hover:from-emerald-600 hover:to-blue-700 transition-all duration-200 shadow-md hover:shadow-lg"
           >
             <Plus className="h-4 w-4 mr-2" />
-            Add {activeTab === 'purchases' ? 'Purchase' : activeTab === 'sales' ? 'Sale' : activeTab === 'lorry-freight' ? 'Freight' : 'Vendor'}
+            Add {activeTab === 'purchases' ? 'Purchase' : activeTab === 'sales' ? 'Sale' : activeTab === 'freight' ? 'Freight' : 'Vendor'}
           </button>
         </div>
 
         {/* Summary Stats */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          {activeTab === 'purchases' && (
-            <>
-              <StatsCard
-                title="Total Purchases"
-                value={formatCurrency(totalPurchases)}
-                icon={<FileText className="h-6 w-6" />}
-                color="from-red-500 to-red-600"
-              />
-              <StatsCard
-                title="Amount Paid"
-                value={formatCurrency(totalPurchasesPaid)}
-                icon={<CheckCircle className="h-6 w-6" />}
-                color="from-green-500 to-green-600"
-              />
-              <StatsCard
-                title="Outstanding"
-                value={formatCurrency(totalPurchasesOutstanding)}
-                subtitle={`${overduePurchases} overdue`}
-                icon={<AlertTriangle className="h-6 w-6" />}
-                color="from-orange-500 to-orange-600"
-              />
-              <StatsCard
-                title="Total Bills"
-                value={purchases.length.toString()}
-                subtitle={`${vendors.length} vendors`}
-                icon={<Package className="h-6 w-6" />}
-                color="from-blue-500 to-blue-600"
-              />
-            </>
-          )}
-
-          {activeTab === 'sales' && (
-            <>
-              <StatsCard
-                title="Total Sales"
-                value={formatCurrency(totalSales)}
-                icon={<IndianRupee className="h-6 w-6" />}
-                color="from-green-500 to-green-600"
-              />
-              <StatsCard
-                title="Amount Received"
-                value={formatCurrency(totalSalesReceived)}
-                icon={<CheckCircle className="h-6 w-6" />}
-                color="from-blue-500 to-blue-600"
-              />
-              <StatsCard
-                title="Outstanding"
-                value={formatCurrency(totalSalesOutstanding)}
-                subtitle={`${overdueSales} overdue`}
-                icon={<AlertTriangle className="h-6 w-6" />}
-                color="from-orange-500 to-orange-600"
-              />
-              <StatsCard
-                title="Total Invoices"
-                value={salesRecords.length.toString()}
-                icon={<FileText className="h-6 w-6" />}
-                color="from-purple-500 to-purple-600"
-              />
-            </>
-          )}
-
-          {activeTab === 'lorry-freight' && (
-            <>
-              <StatsCard
-                title="Total Freight"
-                value={formatCurrency(totalFreightAmount)}
-                icon={<Truck className="h-6 w-6" />}
-                color="from-blue-500 to-blue-600"
-              />
-              <StatsCard
-                title="Advance Paid"
-                value={formatCurrency(totalFreightPaid)}
-                icon={<CheckCircle className="h-6 w-6" />}
-                color="from-green-500 to-green-600"
-              />
-              <StatsCard
-                title="Balance Due"
-                value={formatCurrency(totalFreightOutstanding)}
-                icon={<Clock className="h-6 w-6" />}
-                color="from-orange-500 to-orange-600"
-              />
-              <StatsCard
-                title="Total Trips"
-                value={lorryFreights.length.toString()}
-                subtitle={`${availableConsignments.length} pending`}
-                icon={<Package className="h-6 w-6" />}
-                color="from-purple-500 to-purple-600"
-              />
-            </>
-          )}
-
-          {activeTab === 'vendors' && (
-            <>
-              <StatsCard
-                title="Total Vendors"
-                value={vendors.length.toString()}
-                icon={<Users className="h-6 w-6" />}
-                color="from-blue-500 to-blue-600"
-              />
-              <StatsCard
-                title="Active Vendors"
-                value={vendors.filter(v => purchases.some(p => p.vendorName === v.name)).length.toString()}
-                icon={<CheckCircle className="h-6 w-6" />}
-                color="from-green-500 to-green-600"
-              />
-              <StatsCard
-                title="GST Vendors"
-                value={vendors.filter(v => v.gstNumber).length.toString()}
-                icon={<FileText className="h-6 w-6" />}
-                color="from-purple-500 to-purple-600"
-              />
-              <StatsCard
-                title="Avg Payment Terms"
-                value={`${Math.round(vendors.reduce((sum, v) => sum + v.paymentTerms, 0) / (vendors.length || 1))} days`}
-                icon={<Calendar className="h-6 w-6" />}
-                color="from-orange-500 to-orange-600"
-              />
-            </>
-          )}
+          <StatsCard
+            title="Total Purchases"
+            value={formatCurrency(totalPurchases)}
+            subtitle={`Outstanding: ${formatCurrency(purchaseOutstanding)}`}
+            icon={<FileText className="h-6 w-6" />}
+            color="from-red-500 to-red-600"
+          />
+          <StatsCard
+            title="Total Sales"
+            value={formatCurrency(totalSales)}
+            subtitle={`Outstanding: ${formatCurrency(salesOutstanding)}`}
+            icon={<IndianRupee className="h-6 w-6" />}
+            color="from-green-500 to-green-600"
+          />
+          <StatsCard
+            title="Overdue Purchases"
+            value={overduePurchases.length.toString()}
+            subtitle={`Amount: ${formatCurrency(overduePurchases.reduce((sum, p) => sum + p.balanceAmount, 0))}`}
+            icon={<AlertCircle className="h-6 w-6" />}
+            color="from-orange-500 to-orange-600"
+          />
+          <StatsCard
+            title="Overdue Sales"
+            value={overdueSales.length.toString()}
+            subtitle={`Amount: ${formatCurrency(overdueSales.reduce((sum, s) => sum + s.balanceAmount, 0))}`}
+            icon={<Calendar className="h-6 w-6" />}
+            color="from-purple-500 to-purple-600"
+          />
         </div>
 
         {/* Tab Navigation */}
@@ -531,12 +471,13 @@ const SalesPurchases: React.FC = () => {
                     <table className="w-full">
                       <thead className="bg-gray-50">
                         <tr>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Bill Details</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Bill No</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Vendor</th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payment Status</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Balance</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Due Date</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-200">
@@ -544,46 +485,34 @@ const SalesPurchases: React.FC = () => {
                           const daysDue = calculateDaysDue(purchase.dueDate);
                           return (
                             <tr key={purchase.id} className="hover:bg-gray-50">
-                              <td className="px-4 py-4 whitespace-nowrap">
-                                <div>
-                                  <div className="text-sm font-medium text-gray-900">{purchase.billNumber}</div>
-                                  <div className="text-sm text-gray-500">{new Date(purchase.billDate).toLocaleDateString()}</div>
-                                  <div className="text-xs text-gray-400">{purchase.category.toUpperCase()}</div>
-                                </div>
-                              </td>
-                              <td className="px-4 py-4">
-                                <div className="text-sm font-medium text-gray-900">{purchase.vendorName}</div>
-                                {purchase.vendorGST && (
-                                  <div className="text-xs text-gray-500">GST: {purchase.vendorGST}</div>
-                                )}
-                              </td>
-                              <td className="px-4 py-4 whitespace-nowrap">
-                                <div className="text-sm font-medium text-gray-900">{formatCurrency(purchase.totalAmount)}</div>
-                                <div className="text-xs text-green-600">Paid: {formatCurrency(purchase.paidAmount)}</div>
-                                <div className="text-xs text-red-600">Due: {formatCurrency(purchase.balanceAmount)}</div>
-                              </td>
-                              <td className="px-4 py-4 whitespace-nowrap">
-                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getPaymentStatusColor(purchase.paymentStatus, purchase.dueDate, purchase.balanceAmount)}`}>
-                                  {getPaymentStatusIcon(purchase.paymentStatus, purchase.dueDate, purchase.balanceAmount)}
-                                  <span className="ml-1">
-                                    {purchase.balanceAmount <= 0 ? 'Paid' : daysDue > 0 ? `Overdue ${daysDue}d` : 'Pending'}
-                                  </span>
-                                </span>
+                              <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-blue-600">
+                                {purchase.billNumber}
                               </td>
                               <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-600">
-                                {new Date(purchase.dueDate).toLocaleDateString()}
+                                {new Date(purchase.billDate).toLocaleDateString()}
+                              </td>
+                              <td className="px-4 py-4 text-sm text-gray-900 max-w-xs truncate">
+                                {purchase.vendorName}
+                              </td>
+                              <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
+                                {formatCurrency(purchase.totalAmount)}
+                              </td>
+                              <td className="px-4 py-4 whitespace-nowrap text-sm text-red-600 font-medium">
+                                {formatCurrency(purchase.balanceAmount)}
+                              </td>
+                              <td className="px-4 py-4 whitespace-nowrap">
+                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(purchase.paymentStatus)}`}>
+                                  {purchase.paymentStatus}
+                                </span>
                               </td>
                               <td className="px-4 py-4 whitespace-nowrap text-sm">
-                                <div className="flex space-x-2">
-                                  <button className="text-blue-600 hover:text-blue-800">
-                                    <Edit className="h-4 w-4" />
-                                  </button>
-                                  <button 
-                                    onClick={() => setShowDeleteConfirm(purchase.id)}
-                                    className="text-red-600 hover:text-red-800"
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </button>
+                                <div className={`${daysDue > 0 ? 'text-red-600 font-medium' : 'text-gray-600'}`}>
+                                  {new Date(purchase.dueDate).toLocaleDateString()}
+                                  {daysDue > 0 && (
+                                    <div className="text-xs text-red-500">
+                                      {daysDue} days overdue
+                                    </div>
+                                  )}
                                 </div>
                               </td>
                             </tr>
@@ -609,12 +538,13 @@ const SalesPurchases: React.FC = () => {
                     <table className="w-full">
                       <thead className="bg-gray-50">
                         <tr>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Invoice Details</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Invoice No</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Party</th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payment Status</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Balance</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Due Date</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-200">
@@ -622,48 +552,34 @@ const SalesPurchases: React.FC = () => {
                           const daysDue = calculateDaysDue(sale.dueDate);
                           return (
                             <tr key={sale.id} className="hover:bg-gray-50">
-                              <td className="px-4 py-4 whitespace-nowrap">
-                                <div>
-                                  <div className="text-sm font-medium text-gray-900">{sale.invoiceNumber}</div>
-                                  <div className="text-sm text-gray-500">{new Date(sale.invoiceDate).toLocaleDateString()}</div>
-                                  {sale.lorryNumber && (
-                                    <div className="text-xs text-gray-400">Lorry: {sale.lorryNumber}</div>
-                                  )}
-                                </div>
-                              </td>
-                              <td className="px-4 py-4">
-                                <div className="text-sm font-medium text-gray-900">{sale.partyName}</div>
-                                {sale.partyGST && (
-                                  <div className="text-xs text-gray-500">GST: {sale.partyGST}</div>
-                                )}
-                              </td>
-                              <td className="px-4 py-4 whitespace-nowrap">
-                                <div className="text-sm font-medium text-gray-900">{formatCurrency(sale.totalAmount)}</div>
-                                <div className="text-xs text-green-600">Received: {formatCurrency(sale.paidAmount)}</div>
-                                <div className="text-xs text-red-600">Due: {formatCurrency(sale.balanceAmount)}</div>
-                              </td>
-                              <td className="px-4 py-4 whitespace-nowrap">
-                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getPaymentStatusColor(sale.paymentStatus, sale.dueDate, sale.balanceAmount)}`}>
-                                  {getPaymentStatusIcon(sale.paymentStatus, sale.dueDate, sale.balanceAmount)}
-                                  <span className="ml-1">
-                                    {sale.balanceAmount <= 0 ? 'Paid' : daysDue > 0 ? `Overdue ${daysDue}d` : 'Pending'}
-                                  </span>
-                                </span>
+                              <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-blue-600">
+                                {sale.invoiceNumber}
                               </td>
                               <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-600">
-                                {new Date(sale.dueDate).toLocaleDateString()}
+                                {new Date(sale.invoiceDate).toLocaleDateString()}
+                              </td>
+                              <td className="px-4 py-4 text-sm text-gray-900 max-w-xs truncate">
+                                {sale.partyName}
+                              </td>
+                              <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
+                                {formatCurrency(sale.totalAmount)}
+                              </td>
+                              <td className="px-4 py-4 whitespace-nowrap text-sm text-green-600 font-medium">
+                                {formatCurrency(sale.balanceAmount)}
+                              </td>
+                              <td className="px-4 py-4 whitespace-nowrap">
+                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(sale.paymentStatus)}`}>
+                                  {sale.paymentStatus}
+                                </span>
                               </td>
                               <td className="px-4 py-4 whitespace-nowrap text-sm">
-                                <div className="flex space-x-2">
-                                  <button className="text-blue-600 hover:text-blue-800">
-                                    <Edit className="h-4 w-4" />
-                                  </button>
-                                  <button 
-                                    onClick={() => setShowDeleteConfirm(sale.id)}
-                                    className="text-red-600 hover:text-red-800"
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </button>
+                                <div className={`${daysDue > 0 ? 'text-red-600 font-medium' : 'text-gray-600'}`}>
+                                  {new Date(sale.dueDate).toLocaleDateString()}
+                                  {daysDue > 0 && (
+                                    <div className="text-xs text-red-500">
+                                      {daysDue} days overdue
+                                    </div>
+                                  )}
                                 </div>
                               </td>
                             </tr>
@@ -676,7 +592,7 @@ const SalesPurchases: React.FC = () => {
               </div>
             )}
 
-            {activeTab === 'lorry-freight' && (
+            {activeTab === 'freight' && (
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Lorry Freight Management</h3>
                 {lorryFreights.length === 0 ? (
@@ -689,58 +605,44 @@ const SalesPurchases: React.FC = () => {
                     <table className="w-full">
                       <thead className="bg-gray-50">
                         <tr>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ACK/Lorry</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ACK Number</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Lorry</th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Transporter</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quantity</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Freight Amount</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payment Status</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quantity (MT)</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rate/MT</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Net Amount</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Balance</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-200">
                         {lorryFreights.map((freight) => (
                           <tr key={freight.id} className="hover:bg-gray-50">
-                            <td className="px-4 py-4 whitespace-nowrap">
-                              <div>
-                                <div className="text-sm font-medium text-blue-600">{freight.ackNumber}</div>
-                                <div className="text-sm text-gray-500">{freight.lorryNumber}</div>
-                                <div className="text-xs text-gray-400">{new Date(freight.dispatchDate).toLocaleDateString()}</div>
-                              </div>
+                            <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-blue-600">
+                              {freight.ackNumber}
                             </td>
-                            <td className="px-4 py-4 text-sm text-gray-900">{freight.transporterName}</td>
-                            <td className="px-4 py-4 whitespace-nowrap">
-                              <div className="text-sm font-medium text-gray-900">{formatDecimal(freight.quantityMT)} MT</div>
-                              <div className="text-xs text-gray-500">@ {formatCurrency(freight.freightPerMT)}/MT</div>
+                            <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {freight.lorryNumber}
+                            </td>
+                            <td className="px-4 py-4 text-sm text-gray-900 max-w-xs truncate">
+                              {freight.transporterName}
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {formatDecimal(freight.quantityMT, 2)}
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {formatCurrency(freight.freightPerMT)}
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
+                              {formatCurrency(freight.netFreightAmount)}
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap text-sm text-orange-600 font-medium">
+                              {formatCurrency(freight.balanceAmount)}
                             </td>
                             <td className="px-4 py-4 whitespace-nowrap">
-                              <div className="text-sm font-medium text-gray-900">{formatCurrency(freight.grossFreightAmount)}</div>
-                              <div className="text-xs text-green-600">Advance: {formatCurrency(freight.advancePaid)}</div>
-                              <div className="text-xs text-red-600">Balance: {formatCurrency(freight.balanceAmount)}</div>
-                            </td>
-                            <td className="px-4 py-4 whitespace-nowrap">
-                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${
-                                freight.paymentStatus === 'fully-paid' ? 'bg-green-100 text-green-800 border-green-200' :
-                                freight.paymentStatus === 'advance-paid' ? 'bg-yellow-100 text-yellow-800 border-yellow-200' :
-                                'bg-red-100 text-red-800 border-red-200'
-                              }`}>
-                                {freight.paymentStatus === 'fully-paid' ? <CheckCircle className="h-4 w-4" /> :
-                                 freight.paymentStatus === 'advance-paid' ? <Clock className="h-4 w-4" /> :
-                                 <AlertTriangle className="h-4 w-4" />}
-                                <span className="ml-1 capitalize">{freight.paymentStatus.replace('-', ' ')}</span>
+                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(freight.paymentStatus)}`}>
+                                {freight.paymentStatus.replace('-', ' ')}
                               </span>
-                            </td>
-                            <td className="px-4 py-4 whitespace-nowrap text-sm">
-                              <div className="flex space-x-2">
-                                <button className="text-blue-600 hover:text-blue-800">
-                                  <Edit className="h-4 w-4" />
-                                </button>
-                                <button 
-                                  onClick={() => setShowDeleteConfirm(freight.id)}
-                                  className="text-red-600 hover:text-red-800"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </button>
-                              </div>
                             </td>
                           </tr>
                         ))}
@@ -753,7 +655,7 @@ const SalesPurchases: React.FC = () => {
 
             {activeTab === 'vendors' && (
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Vendor Management</h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Vendor Database</h3>
                 {vendors.length === 0 ? (
                   <div className="text-center py-8">
                     <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
@@ -764,12 +666,11 @@ const SalesPurchases: React.FC = () => {
                     <table className="w-full">
                       <thead className="bg-gray-50">
                         <tr>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Vendor Name</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">GST Number</th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payment Terms</th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Outstanding</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-200">
@@ -783,11 +684,8 @@ const SalesPurchases: React.FC = () => {
                               <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                                 {vendor.name}
                               </td>
-                              <td className="px-4 py-4">
-                                <div className="text-sm text-gray-900">{vendor.phone}</div>
-                                {vendor.email && (
-                                  <div className="text-xs text-gray-500">{vendor.email}</div>
-                                )}
+                              <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-600">
+                                {vendor.phone}
                               </td>
                               <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-600">
                                 {vendor.gstNumber || '-'}
@@ -797,19 +695,6 @@ const SalesPurchases: React.FC = () => {
                               </td>
                               <td className="px-4 py-4 whitespace-nowrap text-sm text-red-600 font-medium">
                                 {formatCurrency(vendorOutstanding)}
-                              </td>
-                              <td className="px-4 py-4 whitespace-nowrap text-sm">
-                                <div className="flex space-x-2">
-                                  <button className="text-blue-600 hover:text-blue-800">
-                                    <Edit className="h-4 w-4" />
-                                  </button>
-                                  <button 
-                                    onClick={() => setShowDeleteConfirm(vendor.id)}
-                                    className="text-red-600 hover:text-red-800"
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </button>
-                                </div>
                               </td>
                             </tr>
                           );
@@ -824,62 +709,131 @@ const SalesPurchases: React.FC = () => {
         </div>
 
         {/* Add Forms */}
-        {showAddForm && activeTab === 'purchases' && (
+        {showAddForm && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-white rounded-xl shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
               <div className="p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Add Purchase Bill</h3>
-                <form onSubmit={handlePurchaseSubmit} className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Bill Number</label>
-                      <input
-                        type="text"
-                        value={purchaseForm.billNumber}
-                        onChange={(e) => setPurchaseForm({ ...purchaseForm, billNumber: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        required
-                      />
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                  Add {activeTab === 'purchases' ? 'Purchase' : activeTab === 'sales' ? 'Sale' : activeTab === 'freight' ? 'Freight' : 'Vendor'}
+                </h3>
+                
+                {activeTab === 'purchases' && (
+                  <form onSubmit={handlePurchaseSubmit} className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Bill Number</label>
+                        <input
+                          type="text"
+                          value={purchaseForm.billNumber}
+                          onChange={(e) => setPurchaseForm({ ...purchaseForm, billNumber: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Bill Date</label>
+                        <input
+                          type="date"
+                          value={purchaseForm.billDate}
+                          onChange={(e) => setPurchaseForm({ ...purchaseForm, billDate: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Vendor Name</label>
+                        <input
+                          type="text"
+                          value={purchaseForm.vendorName}
+                          onChange={(e) => setPurchaseForm({ ...purchaseForm, vendorName: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                        <select
+                          value={purchaseForm.category}
+                          onChange={(e) => setPurchaseForm({ ...purchaseForm, category: e.target.value as 'gst' | 'cash' })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        >
+                          <option value="gst">GST Bill</option>
+                          <option value="cash">Cash Bill</option>
+                        </select>
+                      </div>
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Bill Date</label>
-                      <input
-                        type="date"
-                        value={purchaseForm.billDate}
-                        onChange={(e) => setPurchaseForm({ ...purchaseForm, billDate: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        required
-                      />
-                    </div>
-                  </div>
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Vendor Name</label>
-                      <input
-                        type="text"
-                        value={purchaseForm.vendorName}
-                        onChange={(e) => setPurchaseForm({ ...purchaseForm, vendorName: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
-                      <select
-                        value={purchaseForm.category}
-                        onChange={(e) => setPurchaseForm({ ...purchaseForm, category: e.target.value as 'gst' | 'cash' })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      >
-                        <option value="gst">GST Bill</option>
-                        <option value="cash">Cash Bill</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
+                    <div className="space-y-2">
                       <label className="block text-sm font-medium text-gray-700">Items</label>
+                      {purchaseForm.items.map((item, index) => (
+                        <div key={index} className="grid grid-cols-5 gap-2">
+                          <input
+                            type="text"
+                            placeholder="Item name"
+                            value={item.itemName}
+                            onChange={(e) => {
+                              const newItems = [...purchaseForm.items];
+                              newItems[index].itemName = e.target.value;
+                              setPurchaseForm({ ...purchaseForm, items: newItems });
+                            }}
+                            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            required
+                          />
+                          <input
+                            type="number"
+                            placeholder="Quantity"
+                            value={item.quantity}
+                            onChange={(e) => {
+                              const newItems = [...purchaseForm.items];
+                              newItems[index].quantity = e.target.value;
+                              setPurchaseForm({ ...purchaseForm, items: newItems });
+                            }}
+                            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            required
+                          />
+                          <select
+                            value={item.unit}
+                            onChange={(e) => {
+                              const newItems = [...purchaseForm.items];
+                              newItems[index].unit = e.target.value;
+                              setPurchaseForm({ ...purchaseForm, items: newItems });
+                            }}
+                            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          >
+                            <option value="kg">kg</option>
+                            <option value="qtl">qtl</option>
+                            <option value="piece">piece</option>
+                            <option value="hour">hour</option>
+                          </select>
+                          <input
+                            type="number"
+                            placeholder="Rate"
+                            value={item.rate}
+                            onChange={(e) => {
+                              const newItems = [...purchaseForm.items];
+                              newItems[index].rate = e.target.value;
+                              setPurchaseForm({ ...purchaseForm, items: newItems });
+                            }}
+                            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            required
+                          />
+                          <select
+                            value={item.gstRate}
+                            onChange={(e) => {
+                              const newItems = [...purchaseForm.items];
+                              newItems[index].gstRate = e.target.value;
+                              setPurchaseForm({ ...purchaseForm, items: newItems });
+                            }}
+                            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          >
+                            <option value="0">0%</option>
+                            <option value="5">5%</option>
+                            <option value="12">12%</option>
+                            <option value="18">18%</option>
+                            <option value="28">28%</option>
+                          </select>
+                        </div>
+                      ))}
                       <button
                         type="button"
                         onClick={addPurchaseItem}
@@ -888,157 +842,140 @@ const SalesPurchases: React.FC = () => {
                         + Add Item
                       </button>
                     </div>
-                    {purchaseForm.items.map((item, index) => (
-                      <div key={item.id} className="grid grid-cols-6 gap-2 mb-2">
+
+                    <div className="flex space-x-3 pt-4">
+                      <button
+                        type="submit"
+                        className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors duration-200"
+                      >
+                        Add Purchase
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowAddForm(false)}
+                        className="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-400 transition-colors duration-200"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </form>
+                )}
+
+                {activeTab === 'sales' && (
+                  <form onSubmit={handleSalesSubmit} className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Invoice Number</label>
                         <input
                           type="text"
-                          placeholder="Item Name"
-                          value={item.itemName}
-                          onChange={(e) => {
-                            const newItems = [...purchaseForm.items];
-                            newItems[index].itemName = e.target.value;
-                            setPurchaseForm({ ...purchaseForm, items: newItems });
-                          }}
-                          className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          value={salesForm.invoiceNumber}
+                          onChange={(e) => setSalesForm({ ...salesForm, invoiceNumber: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                           required
                         />
-                        <input
-                          type="number"
-                          step="0.01"
-                          placeholder="Quantity"
-                          value={item.quantity}
-                          onChange={(e) => {
-                            const newItems = [...purchaseForm.items];
-                            newItems[index].quantity = e.target.value;
-                            setPurchaseForm({ ...purchaseForm, items: newItems });
-                          }}
-                          className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          required
-                        />
-                        <select
-                          value={item.unit}
-                          onChange={(e) => {
-                            const newItems = [...purchaseForm.items];
-                            newItems[index].unit = e.target.value;
-                            setPurchaseForm({ ...purchaseForm, items: newItems });
-                          }}
-                          className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        >
-                          <option value="kg">kg</option>
-                          <option value="qtl">qtl</option>
-                          <option value="piece">piece</option>
-                          <option value="hour">hour</option>
-                        </select>
-                        <input
-                          type="number"
-                          step="0.01"
-                          placeholder="Rate"
-                          value={item.rate}
-                          onChange={(e) => {
-                            const newItems = [...purchaseForm.items];
-                            newItems[index].rate = e.target.value;
-                            setPurchaseForm({ ...purchaseForm, items: newItems });
-                          }}
-                          className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          required
-                        />
-                        <select
-                          value={item.gstRate}
-                          onChange={(e) => {
-                            const newItems = [...purchaseForm.items];
-                            newItems[index].gstRate = e.target.value;
-                            setPurchaseForm({ ...purchaseForm, items: newItems });
-                          }}
-                          className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        >
-                          <option value="0">0%</option>
-                          <option value="5">5%</option>
-                          <option value="12">12%</option>
-                          <option value="18">18%</option>
-                          <option value="28">28%</option>
-                        </select>
-                        <div className="text-sm text-gray-600 py-2">
-                          {formatCurrency((parseFloat(item.quantity) || 0) * (parseFloat(item.rate) || 0) * (1 + (parseFloat(item.gstRate) || 0) / 100))}
-                        </div>
                       </div>
-                    ))}
-                  </div>
-
-                  <div className="flex space-x-3 pt-4">
-                    <button
-                      type="submit"
-                      className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors duration-200"
-                    >
-                      Add Purchase
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setShowAddForm(false)}
-                      className="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-400 transition-colors duration-200"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </form>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {showAddForm && activeTab === 'sales' && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-xl shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-              <div className="p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Add Sales Invoice</h3>
-                <form onSubmit={handleSalesSubmit} className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Invoice Number</label>
-                      <input
-                        type="text"
-                        value={salesForm.invoiceNumber}
-                        onChange={(e) => setSalesForm({ ...salesForm, invoiceNumber: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        required
-                      />
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Invoice Date</label>
+                        <input
+                          type="date"
+                          value={salesForm.invoiceDate}
+                          onChange={(e) => setSalesForm({ ...salesForm, invoiceDate: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Party Name</label>
+                        <input
+                          type="text"
+                          value={salesForm.partyName}
+                          onChange={(e) => setSalesForm({ ...salesForm, partyName: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Lorry Number</label>
+                        <input
+                          type="text"
+                          value={salesForm.lorryNumber}
+                          onChange={(e) => setSalesForm({ ...salesForm, lorryNumber: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                      </div>
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Invoice Date</label>
-                      <input
-                        type="date"
-                        value={salesForm.invoiceDate}
-                        onChange={(e) => setSalesForm({ ...salesForm, invoiceDate: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        required
-                      />
-                    </div>
-                  </div>
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Party Name</label>
-                      <input
-                        type="text"
-                        value={salesForm.partyName}
-                        onChange={(e) => setSalesForm({ ...salesForm, partyName: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Lorry Number</label>
-                      <input
-                        type="text"
-                        value={salesForm.lorryNumber}
-                        onChange={(e) => setSalesForm({ ...salesForm, lorryNumber: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
+                    <div className="space-y-2">
                       <label className="block text-sm font-medium text-gray-700">Items</label>
+                      {salesForm.items.map((item, index) => (
+                        <div key={index} className="grid grid-cols-5 gap-2">
+                          <input
+                            type="text"
+                            placeholder="Item name"
+                            value={item.itemName}
+                            onChange={(e) => {
+                              const newItems = [...salesForm.items];
+                              newItems[index].itemName = e.target.value;
+                              setSalesForm({ ...salesForm, items: newItems });
+                            }}
+                            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            required
+                          />
+                          <input
+                            type="number"
+                            placeholder="Quantity"
+                            value={item.quantity}
+                            onChange={(e) => {
+                              const newItems = [...salesForm.items];
+                              newItems[index].quantity = e.target.value;
+                              setSalesForm({ ...salesForm, items: newItems });
+                            }}
+                            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            required
+                          />
+                          <select
+                            value={item.unit}
+                            onChange={(e) => {
+                              const newItems = [...salesForm.items];
+                              newItems[index].unit = e.target.value;
+                              setSalesForm({ ...salesForm, items: newItems });
+                            }}
+                            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          >
+                            <option value="qtl">qtl</option>
+                            <option value="kg">kg</option>
+                            <option value="bag">bag</option>
+                            <option value="piece">piece</option>
+                          </select>
+                          <input
+                            type="number"
+                            placeholder="Rate"
+                            value={item.rate}
+                            onChange={(e) => {
+                              const newItems = [...salesForm.items];
+                              newItems[index].rate = e.target.value;
+                              setSalesForm({ ...salesForm, items: newItems });
+                            }}
+                            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            required
+                          />
+                          <select
+                            value={item.gstRate}
+                            onChange={(e) => {
+                              const newItems = [...salesForm.items];
+                              newItems[index].gstRate = e.target.value;
+                              setSalesForm({ ...salesForm, items: newItems });
+                            }}
+                            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          >
+                            <option value="0">0%</option>
+                            <option value="5">5%</option>
+                            <option value="12">12%</option>
+                            <option value="18">18%</option>
+                            <option value="28">28%</option>
+                          </select>
+                        </div>
+                      ))}
                       <button
                         type="button"
                         onClick={addSalesItem}
@@ -1047,164 +984,106 @@ const SalesPurchases: React.FC = () => {
                         + Add Item
                       </button>
                     </div>
-                    {salesForm.items.map((item, index) => (
-                      <div key={item.id} className="grid grid-cols-6 gap-2 mb-2">
+
+                    <div className="flex space-x-3 pt-4">
+                      <button
+                        type="submit"
+                        className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors duration-200"
+                      >
+                        Add Sale
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowAddForm(false)}
+                        className="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-400 transition-colors duration-200"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </form>
+                )}
+
+                {activeTab === 'freight' && (
+                  <form onSubmit={handleFreightSubmit} className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Select Consignment</label>
+                        <select
+                          value={freightForm.consignmentId}
+                          onChange={(e) => setFreightForm({ ...freightForm, consignmentId: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          required
+                        >
+                          <option value="">Select FCI Consignment</option>
+                          {availableConsignments.map(consignment => (
+                            <option key={consignment.id} value={consignment.id}>
+                              {consignment.ackNumber} - {consignment.lorryNumber}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Transporter Name</label>
                         <input
                           type="text"
-                          placeholder="Item Name"
-                          value={item.itemName}
-                          onChange={(e) => {
-                            const newItems = [...salesForm.items];
-                            newItems[index].itemName = e.target.value;
-                            setSalesForm({ ...salesForm, items: newItems });
-                          }}
-                          className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          value={freightForm.transporterName}
+                          onChange={(e) => setFreightForm({ ...freightForm, transporterName: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                           required
                         />
-                        <input
-                          type="number"
-                          step="0.01"
-                          placeholder="Quantity"
-                          value={item.quantity}
-                          onChange={(e) => {
-                            const newItems = [...salesForm.items];
-                            newItems[index].quantity = e.target.value;
-                            setSalesForm({ ...salesForm, items: newItems });
-                          }}
-                          className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          required
-                        />
-                        <select
-                          value={item.unit}
-                          onChange={(e) => {
-                            const newItems = [...salesForm.items];
-                            newItems[index].unit = e.target.value;
-                            setSalesForm({ ...salesForm, items: newItems });
-                          }}
-                          className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        >
-                          <option value="qtl">qtl</option>
-                          <option value="kg">kg</option>
-                          <option value="bag">bag</option>
-                          <option value="piece">piece</option>
-                        </select>
-                        <input
-                          type="number"
-                          step="0.01"
-                          placeholder="Rate"
-                          value={item.rate}
-                          onChange={(e) => {
-                            const newItems = [...salesForm.items];
-                            newItems[index].rate = e.target.value;
-                            setSalesForm({ ...salesForm, items: newItems });
-                          }}
-                          className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          required
-                        />
-                        <select
-                          value={item.gstRate}
-                          onChange={(e) => {
-                            const newItems = [...salesForm.items];
-                            newItems[index].gstRate = e.target.value;
-                            setSalesForm({ ...salesForm, items: newItems });
-                          }}
-                          className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        >
-                          <option value="0">0%</option>
-                          <option value="5">5%</option>
-                          <option value="12">12%</option>
-                          <option value="18">18%</option>
-                          <option value="28">28%</option>
-                        </select>
-                        <div className="text-sm text-gray-600 py-2">
-                          {formatCurrency((parseFloat(item.quantity) || 0) * (parseFloat(item.rate) || 0) * (1 + (parseFloat(item.gstRate) || 0) / 100))}
-                        </div>
                       </div>
-                    ))}
-                  </div>
-
-                  <div className="flex space-x-3 pt-4">
-                    <button
-                      type="submit"
-                      className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors duration-200"
-                    >
-                      Add Sale
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setShowAddForm(false)}
-                      className="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-400 transition-colors duration-200"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </form>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {showAddForm && activeTab === 'lorry-freight' && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-              <div className="p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Add Lorry Freight</h3>
-                <form onSubmit={handleLorryFreightSubmit} className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">FCI Consignment</label>
-                    <select
-                      value={lorryFreightForm.consignmentId}
-                      onChange={(e) => setLorryFreightForm({ ...lorryFreightForm, consignmentId: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      required
-                    >
-                      <option value="">Select Consignment</option>
-                      {availableConsignments.map(consignment => (
-                        <option key={consignment.id} value={consignment.id}>
-                          {consignment.ackNumber} - {consignment.lorryNumber} ({formatDecimal(consignment.riceQuantity)} Qtl)
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Transporter Name</label>
-                      <input
-                        type="text"
-                        value={lorryFreightForm.transporterName}
-                        onChange={(e) => setLorryFreightForm({ ...lorryFreightForm, transporterName: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        required
-                      />
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Freight Per MT (₹)</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={freightForm.freightPerMT}
+                          onChange={(e) => setFreightForm({ ...freightForm, freightPerMT: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Advance Paid (₹)</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={freightForm.advancePaid}
+                          onChange={(e) => setFreightForm({ ...freightForm, advancePaid: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                      </div>
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Freight Rate (₹/MT)</label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={lorryFreightForm.freightPerMT}
-                        onChange={(e) => setLorryFreightForm({ ...lorryFreightForm, freightPerMT: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        required
-                      />
-                    </div>
-                  </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Advance Paid (₹)</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={lorryFreightForm.advancePaid}
-                      onChange={(e) => setLorryFreightForm({ ...lorryFreightForm, advancePaid: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
-                  </div>
-
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
+                    <div className="space-y-2">
                       <label className="block text-sm font-medium text-gray-700">Deductions</label>
+                      {freightForm.deductions.map((deduction, index) => (
+                        <div key={index} className="grid grid-cols-2 gap-2">
+                          <input
+                            type="text"
+                            placeholder="Deduction description"
+                            value={deduction.description}
+                            onChange={(e) => {
+                              const newDeductions = [...freightForm.deductions];
+                              newDeductions[index].description = e.target.value;
+                              setFreightForm({ ...freightForm, deductions: newDeductions });
+                            }}
+                            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          />
+                          <input
+                            type="number"
+                            step="0.01"
+                            placeholder="Amount"
+                            value={deduction.amount}
+                            onChange={(e) => {
+                              const newDeductions = [...freightForm.deductions];
+                              newDeductions[index].amount = e.target.value;
+                              setFreightForm({ ...freightForm, deductions: newDeductions });
+                            }}
+                            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          />
+                        </div>
+                      ))}
                       <button
                         type="button"
                         onClick={addDeduction}
@@ -1213,154 +1092,94 @@ const SalesPurchases: React.FC = () => {
                         + Add Deduction
                       </button>
                     </div>
-                    {lorryFreightForm.deductions.map((deduction, index) => (
-                      <div key={deduction.id} className="grid grid-cols-2 gap-2 mb-2">
+
+                    <div className="flex space-x-3 pt-4">
+                      <button
+                        type="submit"
+                        className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors duration-200"
+                      >
+                        Add Freight
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowAddForm(false)}
+                        className="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-400 transition-colors duration-200"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </form>
+                )}
+
+                {activeTab === 'vendors' && (
+                  <form onSubmit={handleVendorSubmit} className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Vendor Name</label>
                         <input
                           type="text"
-                          placeholder="Description"
-                          value={deduction.description}
-                          onChange={(e) => {
-                            const newDeductions = [...lorryFreightForm.deductions];
-                            newDeductions[index].description = e.target.value;
-                            setLorryFreightForm({ ...lorryFreightForm, deductions: newDeductions });
-                          }}
-                          className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        />
-                        <input
-                          type="number"
-                          step="0.01"
-                          placeholder="Amount"
-                          value={deduction.amount}
-                          onChange={(e) => {
-                            const newDeductions = [...lorryFreightForm.deductions];
-                            newDeductions[index].amount = e.target.value;
-                            setLorryFreightForm({ ...lorryFreightForm, deductions: newDeductions });
-                          }}
-                          className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          value={vendorForm.name}
+                          onChange={(e) => setVendorForm({ ...vendorForm, name: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          required
                         />
                       </div>
-                    ))}
-                  </div>
-
-                  <div className="flex space-x-3 pt-4">
-                    <button
-                      type="submit"
-                      className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors duration-200"
-                    >
-                      Add Freight Record
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setShowAddForm(false)}
-                      className="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-400 transition-colors duration-200"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </form>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {showAddForm && activeTab === 'vendors' && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-xl shadow-xl max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
-              <div className="p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Add Vendor</h3>
-                <form onSubmit={handleVendorSubmit} className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Vendor Name</label>
-                    <input
-                      type="text"
-                      value={vendorForm.name}
-                      onChange={(e) => setVendorForm({ ...vendorForm, name: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
-                    <textarea
-                      value={vendorForm.address}
-                      onChange={(e) => setVendorForm({ ...vendorForm, address: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      rows={3}
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
-                    <input
-                      type="tel"
-                      value={vendorForm.phone}
-                      onChange={(e) => setVendorForm({ ...vendorForm, phone: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">GST Number</label>
-                    <input
-                      type="text"
-                      value={vendorForm.gstNumber}
-                      onChange={(e) => setVendorForm({ ...vendorForm, gstNumber: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Payment Terms (Days)</label>
-                    <input
-                      type="number"
-                      value={vendorForm.paymentTerms}
-                      onChange={(e) => setVendorForm({ ...vendorForm, paymentTerms: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
-                  </div>
-                  <div className="flex space-x-3 pt-4">
-                    <button
-                      type="submit"
-                      className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors duration-200"
-                    >
-                      Add Vendor
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setShowAddForm(false)}
-                      className="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-400 transition-colors duration-200"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </form>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Delete Confirmation Modal */}
-        {showDeleteConfirm && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-xl shadow-xl max-w-md w-full mx-4">
-              <div className="p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Confirm Delete</h3>
-                <p className="text-gray-600 mb-6">
-                  Are you sure you want to delete this record? This action cannot be undone.
-                </p>
-                <div className="flex space-x-3">
-                  <button
-                    onClick={() => deleteItem(showDeleteConfirm)}
-                    className="flex-1 bg-red-600 text-white py-2 px-4 rounded-lg hover:bg-red-700 transition-colors duration-200"
-                  >
-                    Delete
-                  </button>
-                  <button
-                    onClick={() => setShowDeleteConfirm(null)}
-                    className="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-400 transition-colors duration-200"
-                  >
-                    Cancel
-                  </button>
-                </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                        <input
+                          type="tel"
+                          value={vendorForm.phone}
+                          onChange={(e) => setVendorForm({ ...vendorForm, phone: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">GST Number</label>
+                        <input
+                          type="text"
+                          value={vendorForm.gstNumber}
+                          onChange={(e) => setVendorForm({ ...vendorForm, gstNumber: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Payment Terms (Days)</label>
+                        <input
+                          type="number"
+                          value={vendorForm.paymentTerms}
+                          onChange={(e) => setVendorForm({ ...vendorForm, paymentTerms: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
+                      <textarea
+                        value={vendorForm.address}
+                        onChange={(e) => setVendorForm({ ...vendorForm, address: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        rows={3}
+                        required
+                      />
+                    </div>
+                    <div className="flex space-x-3 pt-4">
+                      <button
+                        type="submit"
+                        className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors duration-200"
+                      >
+                        Add Vendor
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowAddForm(false)}
+                        className="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-400 transition-colors duration-200"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </form>
+                )}
               </div>
             </div>
           </div>
