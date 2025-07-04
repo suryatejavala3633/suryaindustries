@@ -1,7 +1,12 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Plus, Download, Edit, Save, X, Zap, Calendar, FileText, TrendingUp, AlertTriangle, Trash2, Upload } from 'lucide-react';
+import { Plus, Download, Edit, Save, X, Zap, Calendar, FileText, TrendingUp, AlertTriangle, Trash2, Upload, Globe, CheckCircle, Clock, RefreshCw } from 'lucide-react';
 import { ElectricityReading } from '../types';
-import { formatCurrency, formatDecimal } from '../utils/calculations';
+import { formatDecimal, formatCurrency, formatWeight } from '../utils/calculations';
+import { 
+  saveByProducts, loadByProducts, saveCustomers, loadCustomers, 
+  saveProducts, loadProducts, saveSales, loadSales, 
+  savePayments, loadPayments, saveExpenses, loadExpenses 
+} from '../utils/dataStorage';
 import StatsCard from './StatsCard';
 
 interface ElectricityTrackingProps {
@@ -13,6 +18,9 @@ const ElectricityTracking: React.FC<ElectricityTrackingProps> = ({ onBack }) => 
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingReading, setEditingReading] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
+  const [isImporting, setIsImporting] = useState(false);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [extractedBillData, setExtractedBillData] = useState<any>(null);
   const [liveReadings, setLiveReadings] = useState({
     kwh: 0,
     kvah: 0,
@@ -147,6 +155,7 @@ const ElectricityTracking: React.FC<ElectricityTrackingProps> = ({ onBack }) => 
 
   const handleReadingSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
     const newReading: ElectricityReading = {
       id: Date.now().toString(),
       readingDate: readingForm.readingDate,
@@ -214,21 +223,46 @@ const ElectricityTracking: React.FC<ElectricityTrackingProps> = ({ onBack }) => 
     setLiveReadingForm({ kwh: '', kvah: '', rmd: '' });
   };
 
-  const handleHTMLBillUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file && (file.type === 'text/html' || file.name.endsWith('.html'))) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const htmlContent = e.target?.result as string;
-        parseHTMLBill(htmlContent);
-      };
-      reader.readAsText(file);
-    } else {
-      alert('Please select a valid HTML file');
+  // Auto-import latest bill from hosted URL
+  const importLatestBill = async () => {
+    setIsImporting(true);
+    try {
+      // Use a CORS proxy to fetch the bill data
+      const proxyUrl = 'https://api.allorigins.win/get?url=';
+      const billUrl = 'https://webportal.tgsouthernpower.org/HTBilling/MeterDetails/HTBillSet_BillViewGen.jsp?htscno=SGR1469';
+      
+      const response = await fetch(proxyUrl + encodeURIComponent(billUrl));
+      const data = await response.json();
+      
+      if (data.contents) {
+        const extractedData = parseBillHTML(data.contents);
+        
+        // Check for duplicates
+        const isDuplicate = electricityReadings.some(reading => 
+          reading.billPeriod === extractedData.billPeriod && 
+          Math.abs(reading.kwh - extractedData.kwh) < 1
+        );
+
+        if (isDuplicate) {
+          alert(`Bill for ${extractedData.billPeriod} already exists in records. No duplicate will be created.`);
+          setIsImporting(false);
+          return;
+        }
+
+        setExtractedBillData(extractedData);
+        setShowConfirmDialog(true);
+      } else {
+        throw new Error('Unable to fetch bill data');
+      }
+    } catch (error) {
+      console.error('Error importing bill:', error);
+      alert('Unable to fetch the latest bill. Please try uploading the HTML file manually or check your internet connection.');
+    } finally {
+      setIsImporting(false);
     }
   };
 
-  const parseHTMLBill = (htmlContent: string) => {
+  const parseBillHTML = (htmlContent: string) => {
     try {
       // Create a temporary DOM element to parse HTML
       const parser = new DOMParser();
@@ -241,7 +275,13 @@ const ElectricityTracking: React.FC<ElectricityTrackingProps> = ({ onBack }) => 
         rmd: 0,
         billAmount: 0,
         billPeriod: '',
-        billDate: ''
+        billDate: '',
+        powerFactor: 0,
+        contractDemand: 190,
+        energyCharges: 0,
+        demandCharges: 0,
+        electricityDuty: 0,
+        customerCharges: 0
       };
 
       // Look for consumption data in table rows
@@ -269,6 +309,38 @@ const ElectricityTracking: React.FC<ElectricityTrackingProps> = ({ onBack }) => 
               extractedData.billAmount = parseFloat(amountCell.replace(/[^\d.]/g, '')) || 0;
             }
           }
+
+          // Extract energy charges
+          if (firstCell.includes('energy charges')) {
+            const amountCell = cells[3]?.textContent?.trim();
+            if (amountCell) {
+              extractedData.energyCharges = parseFloat(amountCell.replace(/[^\d.]/g, '')) || 0;
+            }
+          }
+
+          // Extract demand charges
+          if (firstCell.includes('demand charges normal')) {
+            const amountCell = cells[3]?.textContent?.trim();
+            if (amountCell) {
+              extractedData.demandCharges = parseFloat(amountCell.replace(/[^\d.]/g, '')) || 0;
+            }
+          }
+
+          // Extract electricity duty
+          if (firstCell.includes('electricity duty')) {
+            const amountCell = cells[3]?.textContent?.trim();
+            if (amountCell) {
+              extractedData.electricityDuty = parseFloat(amountCell.replace(/[^\d.]/g, '')) || 0;
+            }
+          }
+
+          // Extract customer charges
+          if (firstCell.includes('customer charges')) {
+            const amountCell = cells[1]?.textContent?.trim();
+            if (amountCell) {
+              extractedData.customerCharges = parseFloat(amountCell.replace(/[^\d.]/g, '')) || 0;
+            }
+          }
         }
       });
 
@@ -292,31 +364,77 @@ const ElectricityTracking: React.FC<ElectricityTrackingProps> = ({ onBack }) => 
         }
       }
 
-      // Auto-populate forms with extracted data
-      if (extractedData.kwh > 0 || extractedData.kvah > 0) {
-        setLiveReadingForm({
-          kwh: extractedData.kwh.toString(),
-          kvah: extractedData.kvah.toString(),
-          rmd: extractedData.rmd.toString()
-        });
-        
-        setReadingForm(prev => ({
-          ...prev,
-          kwh: extractedData.kwh.toString(),
-          kvah: extractedData.kvah.toString(),
-          rmd: extractedData.rmd.toString(),
-          billAmount: extractedData.billAmount.toString(),
-          billPeriod: extractedData.billPeriod,
-          readingDate: extractedData.billDate || new Date().toISOString().split('T')[0]
-        }));
-        
-        alert('HTML bill data parsed successfully! Please review and save the readings.');
-      } else {
-        alert('Could not extract electricity data from the HTML file. Please check the file format.');
+      // Calculate power factor
+      if (extractedData.kvah > 0) {
+        extractedData.powerFactor = extractedData.kwh / extractedData.kvah;
       }
+
+      return extractedData;
     } catch (error) {
       console.error('Error parsing HTML bill:', error);
-      alert('Error parsing HTML bill. Please check the file format.');
+      throw new Error('Failed to parse bill data');
+    }
+  };
+
+  const confirmBillImport = () => {
+    if (extractedBillData) {
+      // Update live readings
+      setLiveReadings({
+        kwh: extractedBillData.kwh,
+        kvah: extractedBillData.kvah,
+        rmd: extractedBillData.rmd,
+        lastUpdated: new Date().toISOString().split('T')[0]
+      });
+
+      // Create new reading record
+      const newReading: ElectricityReading = {
+        id: Date.now().toString(),
+        readingDate: extractedBillData.billDate || new Date().toISOString().split('T')[0],
+        kwh: extractedBillData.kwh,
+        kvah: extractedBillData.kvah,
+        rmd: extractedBillData.rmd,
+        billAmount: extractedBillData.billAmount,
+        billPeriod: extractedBillData.billPeriod,
+        notes: `Auto-imported from TSSPDCL portal - PF: ${extractedBillData.powerFactor.toFixed(2)}`
+      };
+
+      setElectricityReadings([...electricityReadings, newReading]);
+      setShowConfirmDialog(false);
+      setExtractedBillData(null);
+      
+      alert('Bill imported successfully! Live readings and bill record have been updated.');
+    }
+  };
+
+  const handleHTMLBillUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file && (file.type === 'text/html' || file.name.endsWith('.html'))) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const htmlContent = e.target?.result as string;
+        try {
+          const extractedData = parseBillHTML(htmlContent);
+          
+          // Check for duplicates
+          const isDuplicate = electricityReadings.some(reading => 
+            reading.billPeriod === extractedData.billPeriod && 
+            Math.abs(reading.kwh - extractedData.kwh) < 1
+          );
+
+          if (isDuplicate) {
+            alert(`Bill for ${extractedData.billPeriod} already exists in records. No duplicate will be created.`);
+            return;
+          }
+
+          setExtractedBillData(extractedData);
+          setShowConfirmDialog(true);
+        } catch (error) {
+          alert('Error parsing HTML bill. Please check the file format.');
+        }
+      };
+      reader.readAsText(file);
+    } else {
+      alert('Please select a valid HTML file');
     }
   };
 
@@ -363,6 +481,18 @@ const ElectricityTracking: React.FC<ElectricityTrackingProps> = ({ onBack }) => 
             <p className="text-gray-600 mt-2">Monitor electricity usage for Service No. SGR1469, calculate power factor and track bill amounts</p>
           </div>
           <div className="flex items-center space-x-3">
+            <button
+              onClick={importLatestBill}
+              disabled={isImporting}
+              className="inline-flex items-center px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-all duration-200 shadow-md hover:shadow-lg disabled:bg-gray-400 disabled:cursor-not-allowed"
+            >
+              {isImporting ? (
+                <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Globe className="h-4 w-4 mr-2" />
+              )}
+              {isImporting ? 'Importing...' : 'Import Latest Bill'}
+            </button>
             <label className="inline-flex items-center px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 transition-all duration-200 shadow-md hover:shadow-lg cursor-pointer">
               <Upload className="h-4 w-4 mr-2" />
               Upload HTML Bill
@@ -720,6 +850,78 @@ const ElectricityTracking: React.FC<ElectricityTrackingProps> = ({ onBack }) => 
             )}
           </div>
         </div>
+
+        {/* Bill Confirmation Dialog */}
+        {showConfirmDialog && extractedBillData && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+              <div className="p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Confirm Bill Import</h3>
+                <p className="text-gray-600 mb-6">
+                  Please review the extracted bill data before importing:
+                </p>
+                
+                <div className="bg-gray-50 rounded-lg p-4 mb-6">
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <span className="font-medium text-gray-700">Bill Period:</span>
+                      <span className="ml-2">{extractedBillData.billPeriod}</span>
+                    </div>
+                    <div>
+                      <span className="font-medium text-gray-700">Bill Date:</span>
+                      <span className="ml-2">{extractedBillData.billDate}</span>
+                    </div>
+                    <div>
+                      <span className="font-medium text-gray-700">KWH:</span>
+                      <span className="ml-2">{formatDecimal(extractedBillData.kwh)}</span>
+                    </div>
+                    <div>
+                      <span className="font-medium text-gray-700">KVAH:</span>
+                      <span className="ml-2">{formatDecimal(extractedBillData.kvah)}</span>
+                    </div>
+                    <div>
+                      <span className="font-medium text-gray-700">RMD (kVA):</span>
+                      <span className="ml-2">{formatDecimal(extractedBillData.rmd)}</span>
+                    </div>
+                    <div>
+                      <span className="font-medium text-gray-700">Power Factor:</span>
+                      <span className={`ml-2 font-semibold ${extractedBillData.powerFactor < 0.9 ? 'text-red-600' : 'text-green-600'}`}>
+                        {formatDecimal(extractedBillData.powerFactor, 2)}
+                      </span>
+                    </div>
+                    <div className="col-span-2">
+                      <span className="font-medium text-gray-700">Bill Amount:</span>
+                      <span className="ml-2 font-semibold text-green-600">{formatCurrency(extractedBillData.billAmount)}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center space-x-2 mb-6">
+                  <CheckCircle className="h-5 w-5 text-green-600" />
+                  <span className="text-sm text-gray-600">This will update your live readings and create a new bill record.</span>
+                </div>
+
+                <div className="flex space-x-3">
+                  <button
+                    onClick={confirmBillImport}
+                    className="flex-1 bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition-colors duration-200"
+                  >
+                    Confirm & Import
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowConfirmDialog(false);
+                      setExtractedBillData(null);
+                    }}
+                    className="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-400 transition-colors duration-200"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Add Reading Form */}
         {showAddForm && (
