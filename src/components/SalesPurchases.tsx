@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Plus, Download, Edit, Save, X, Trash2, Truck, AlertTriangle, CheckCircle, Clock, FileText, IndianRupee, Calendar, Package } from 'lucide-react';
+import { Plus, Download, Edit, Save, X, Trash2, Truck, AlertTriangle, CheckCircle, Clock, FileText, IndianRupee, Calendar, Package, Users } from 'lucide-react';
 import { Purchase, PurchasePayment, SalesRecord, SalesPayment, Vendor, LorryFreight, FCIConsignment } from '../types';
 import { formatCurrency, formatDecimal, calculateDaysDue } from '../utils/calculations';
 import { 
@@ -331,6 +331,19 @@ const SalesPurchases: React.FC = () => {
     return <Clock className="h-4 w-4" />;
   };
 
+  const deleteItem = (id: string) => {
+    if (activeTab === 'purchases') {
+      setPurchases(purchases.filter(p => p.id !== id));
+    } else if (activeTab === 'sales') {
+      setSalesRecords(salesRecords.filter(s => s.id !== id));
+    } else if (activeTab === 'lorry-freight') {
+      setLorryFreights(lorryFreights.filter(f => f.id !== id));
+    } else if (activeTab === 'vendors') {
+      setVendors(vendors.filter(v => v.id !== id));
+    }
+    setShowDeleteConfirm(null);
+  };
+
   const tabs = [
     { id: 'purchases', label: 'Purchases', icon: FileText },
     { id: 'sales', label: 'Sales', icon: IndianRupee },
@@ -448,6 +461,35 @@ const SalesPurchases: React.FC = () => {
               />
             </>
           )}
+
+          {activeTab === 'vendors' && (
+            <>
+              <StatsCard
+                title="Total Vendors"
+                value={vendors.length.toString()}
+                icon={<Users className="h-6 w-6" />}
+                color="from-blue-500 to-blue-600"
+              />
+              <StatsCard
+                title="Active Vendors"
+                value={vendors.filter(v => purchases.some(p => p.vendorName === v.name)).length.toString()}
+                icon={<CheckCircle className="h-6 w-6" />}
+                color="from-green-500 to-green-600"
+              />
+              <StatsCard
+                title="GST Vendors"
+                value={vendors.filter(v => v.gstNumber).length.toString()}
+                icon={<FileText className="h-6 w-6" />}
+                color="from-purple-500 to-purple-600"
+              />
+              <StatsCard
+                title="Avg Payment Terms"
+                value={`${Math.round(vendors.reduce((sum, v) => sum + v.paymentTerms, 0) / (vendors.length || 1))} days`}
+                icon={<Calendar className="h-6 w-6" />}
+                color="from-orange-500 to-orange-600"
+              />
+            </>
+          )}
         </div>
 
         {/* Tab Navigation */}
@@ -554,6 +596,86 @@ const SalesPurchases: React.FC = () => {
               </div>
             )}
 
+            {activeTab === 'sales' && (
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Sales Records</h3>
+                {salesRecords.length === 0 ? (
+                  <div className="text-center py-8">
+                    <IndianRupee className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-600">No sales records yet.</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Invoice Details</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Party</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payment Status</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Due Date</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {salesRecords.map((sale) => {
+                          const daysDue = calculateDaysDue(sale.dueDate);
+                          return (
+                            <tr key={sale.id} className="hover:bg-gray-50">
+                              <td className="px-4 py-4 whitespace-nowrap">
+                                <div>
+                                  <div className="text-sm font-medium text-gray-900">{sale.invoiceNumber}</div>
+                                  <div className="text-sm text-gray-500">{new Date(sale.invoiceDate).toLocaleDateString()}</div>
+                                  {sale.lorryNumber && (
+                                    <div className="text-xs text-gray-400">Lorry: {sale.lorryNumber}</div>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="px-4 py-4">
+                                <div className="text-sm font-medium text-gray-900">{sale.partyName}</div>
+                                {sale.partyGST && (
+                                  <div className="text-xs text-gray-500">GST: {sale.partyGST}</div>
+                                )}
+                              </td>
+                              <td className="px-4 py-4 whitespace-nowrap">
+                                <div className="text-sm font-medium text-gray-900">{formatCurrency(sale.totalAmount)}</div>
+                                <div className="text-xs text-green-600">Received: {formatCurrency(sale.paidAmount)}</div>
+                                <div className="text-xs text-red-600">Due: {formatCurrency(sale.balanceAmount)}</div>
+                              </td>
+                              <td className="px-4 py-4 whitespace-nowrap">
+                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getPaymentStatusColor(sale.paymentStatus, sale.dueDate, sale.balanceAmount)}`}>
+                                  {getPaymentStatusIcon(sale.paymentStatus, sale.dueDate, sale.balanceAmount)}
+                                  <span className="ml-1">
+                                    {sale.balanceAmount <= 0 ? 'Paid' : daysDue > 0 ? `Overdue ${daysDue}d` : 'Pending'}
+                                  </span>
+                                </span>
+                              </td>
+                              <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-600">
+                                {new Date(sale.dueDate).toLocaleDateString()}
+                              </td>
+                              <td className="px-4 py-4 whitespace-nowrap text-sm">
+                                <div className="flex space-x-2">
+                                  <button className="text-blue-600 hover:text-blue-800">
+                                    <Edit className="h-4 w-4" />
+                                  </button>
+                                  <button 
+                                    onClick={() => setShowDeleteConfirm(sale.id)}
+                                    className="text-red-600 hover:text-red-800"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
+
             {activeTab === 'lorry-freight' && (
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Lorry Freight Management</h3>
@@ -628,10 +750,400 @@ const SalesPurchases: React.FC = () => {
                 )}
               </div>
             )}
+
+            {activeTab === 'vendors' && (
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Vendor Management</h3>
+                {vendors.length === 0 ? (
+                  <div className="text-center py-8">
+                    <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-600">No vendors added yet.</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Vendor Name</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">GST Number</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payment Terms</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Outstanding</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {vendors.map((vendor) => {
+                          const vendorOutstanding = purchases
+                            .filter(p => p.vendorName === vendor.name)
+                            .reduce((sum, p) => sum + p.balanceAmount, 0);
+                          
+                          return (
+                            <tr key={vendor.id} className="hover:bg-gray-50">
+                              <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                {vendor.name}
+                              </td>
+                              <td className="px-4 py-4">
+                                <div className="text-sm text-gray-900">{vendor.phone}</div>
+                                {vendor.email && (
+                                  <div className="text-xs text-gray-500">{vendor.email}</div>
+                                )}
+                              </td>
+                              <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-600">
+                                {vendor.gstNumber || '-'}
+                              </td>
+                              <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-600">
+                                {vendor.paymentTerms} days
+                              </td>
+                              <td className="px-4 py-4 whitespace-nowrap text-sm text-red-600 font-medium">
+                                {formatCurrency(vendorOutstanding)}
+                              </td>
+                              <td className="px-4 py-4 whitespace-nowrap text-sm">
+                                <div className="flex space-x-2">
+                                  <button className="text-blue-600 hover:text-blue-800">
+                                    <Edit className="h-4 w-4" />
+                                  </button>
+                                  <button 
+                                    onClick={() => setShowDeleteConfirm(vendor.id)}
+                                    className="text-red-600 hover:text-red-800"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
         {/* Add Forms */}
+        {showAddForm && activeTab === 'purchases' && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-xl shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+              <div className="p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Add Purchase Bill</h3>
+                <form onSubmit={handlePurchaseSubmit} className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Bill Number</label>
+                      <input
+                        type="text"
+                        value={purchaseForm.billNumber}
+                        onChange={(e) => setPurchaseForm({ ...purchaseForm, billNumber: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Bill Date</label>
+                      <input
+                        type="date"
+                        value={purchaseForm.billDate}
+                        onChange={(e) => setPurchaseForm({ ...purchaseForm, billDate: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Vendor Name</label>
+                      <input
+                        type="text"
+                        value={purchaseForm.vendorName}
+                        onChange={(e) => setPurchaseForm({ ...purchaseForm, vendorName: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                      <select
+                        value={purchaseForm.category}
+                        onChange={(e) => setPurchaseForm({ ...purchaseForm, category: e.target.value as 'gst' | 'cash' })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      >
+                        <option value="gst">GST Bill</option>
+                        <option value="cash">Cash Bill</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="block text-sm font-medium text-gray-700">Items</label>
+                      <button
+                        type="button"
+                        onClick={addPurchaseItem}
+                        className="text-blue-600 hover:text-blue-800 text-sm"
+                      >
+                        + Add Item
+                      </button>
+                    </div>
+                    {purchaseForm.items.map((item, index) => (
+                      <div key={item.id} className="grid grid-cols-6 gap-2 mb-2">
+                        <input
+                          type="text"
+                          placeholder="Item Name"
+                          value={item.itemName}
+                          onChange={(e) => {
+                            const newItems = [...purchaseForm.items];
+                            newItems[index].itemName = e.target.value;
+                            setPurchaseForm({ ...purchaseForm, items: newItems });
+                          }}
+                          className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          required
+                        />
+                        <input
+                          type="number"
+                          step="0.01"
+                          placeholder="Quantity"
+                          value={item.quantity}
+                          onChange={(e) => {
+                            const newItems = [...purchaseForm.items];
+                            newItems[index].quantity = e.target.value;
+                            setPurchaseForm({ ...purchaseForm, items: newItems });
+                          }}
+                          className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          required
+                        />
+                        <select
+                          value={item.unit}
+                          onChange={(e) => {
+                            const newItems = [...purchaseForm.items];
+                            newItems[index].unit = e.target.value;
+                            setPurchaseForm({ ...purchaseForm, items: newItems });
+                          }}
+                          className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        >
+                          <option value="kg">kg</option>
+                          <option value="qtl">qtl</option>
+                          <option value="piece">piece</option>
+                          <option value="hour">hour</option>
+                        </select>
+                        <input
+                          type="number"
+                          step="0.01"
+                          placeholder="Rate"
+                          value={item.rate}
+                          onChange={(e) => {
+                            const newItems = [...purchaseForm.items];
+                            newItems[index].rate = e.target.value;
+                            setPurchaseForm({ ...purchaseForm, items: newItems });
+                          }}
+                          className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          required
+                        />
+                        <select
+                          value={item.gstRate}
+                          onChange={(e) => {
+                            const newItems = [...purchaseForm.items];
+                            newItems[index].gstRate = e.target.value;
+                            setPurchaseForm({ ...purchaseForm, items: newItems });
+                          }}
+                          className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        >
+                          <option value="0">0%</option>
+                          <option value="5">5%</option>
+                          <option value="12">12%</option>
+                          <option value="18">18%</option>
+                          <option value="28">28%</option>
+                        </select>
+                        <div className="text-sm text-gray-600 py-2">
+                          {formatCurrency((parseFloat(item.quantity) || 0) * (parseFloat(item.rate) || 0) * (1 + (parseFloat(item.gstRate) || 0) / 100))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="flex space-x-3 pt-4">
+                    <button
+                      type="submit"
+                      className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors duration-200"
+                    >
+                      Add Purchase
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowAddForm(false)}
+                      className="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-400 transition-colors duration-200"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showAddForm && activeTab === 'sales' && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-xl shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+              <div className="p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Add Sales Invoice</h3>
+                <form onSubmit={handleSalesSubmit} className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Invoice Number</label>
+                      <input
+                        type="text"
+                        value={salesForm.invoiceNumber}
+                        onChange={(e) => setSalesForm({ ...salesForm, invoiceNumber: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Invoice Date</label>
+                      <input
+                        type="date"
+                        value={salesForm.invoiceDate}
+                        onChange={(e) => setSalesForm({ ...salesForm, invoiceDate: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Party Name</label>
+                      <input
+                        type="text"
+                        value={salesForm.partyName}
+                        onChange={(e) => setSalesForm({ ...salesForm, partyName: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Lorry Number</label>
+                      <input
+                        type="text"
+                        value={salesForm.lorryNumber}
+                        onChange={(e) => setSalesForm({ ...salesForm, lorryNumber: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="block text-sm font-medium text-gray-700">Items</label>
+                      <button
+                        type="button"
+                        onClick={addSalesItem}
+                        className="text-blue-600 hover:text-blue-800 text-sm"
+                      >
+                        + Add Item
+                      </button>
+                    </div>
+                    {salesForm.items.map((item, index) => (
+                      <div key={item.id} className="grid grid-cols-6 gap-2 mb-2">
+                        <input
+                          type="text"
+                          placeholder="Item Name"
+                          value={item.itemName}
+                          onChange={(e) => {
+                            const newItems = [...salesForm.items];
+                            newItems[index].itemName = e.target.value;
+                            setSalesForm({ ...salesForm, items: newItems });
+                          }}
+                          className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          required
+                        />
+                        <input
+                          type="number"
+                          step="0.01"
+                          placeholder="Quantity"
+                          value={item.quantity}
+                          onChange={(e) => {
+                            const newItems = [...salesForm.items];
+                            newItems[index].quantity = e.target.value;
+                            setSalesForm({ ...salesForm, items: newItems });
+                          }}
+                          className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          required
+                        />
+                        <select
+                          value={item.unit}
+                          onChange={(e) => {
+                            const newItems = [...salesForm.items];
+                            newItems[index].unit = e.target.value;
+                            setSalesForm({ ...salesForm, items: newItems });
+                          }}
+                          className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        >
+                          <option value="qtl">qtl</option>
+                          <option value="kg">kg</option>
+                          <option value="bag">bag</option>
+                          <option value="piece">piece</option>
+                        </select>
+                        <input
+                          type="number"
+                          step="0.01"
+                          placeholder="Rate"
+                          value={item.rate}
+                          onChange={(e) => {
+                            const newItems = [...salesForm.items];
+                            newItems[index].rate = e.target.value;
+                            setSalesForm({ ...salesForm, items: newItems });
+                          }}
+                          className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          required
+                        />
+                        <select
+                          value={item.gstRate}
+                          onChange={(e) => {
+                            const newItems = [...salesForm.items];
+                            newItems[index].gstRate = e.target.value;
+                            setSalesForm({ ...salesForm, items: newItems });
+                          }}
+                          className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        >
+                          <option value="0">0%</option>
+                          <option value="5">5%</option>
+                          <option value="12">12%</option>
+                          <option value="18">18%</option>
+                          <option value="28">28%</option>
+                        </select>
+                        <div className="text-sm text-gray-600 py-2">
+                          {formatCurrency((parseFloat(item.quantity) || 0) * (parseFloat(item.rate) || 0) * (1 + (parseFloat(item.gstRate) || 0) / 100))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="flex space-x-3 pt-4">
+                    <button
+                      type="submit"
+                      className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors duration-200"
+                    >
+                      Add Sale
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowAddForm(false)}
+                      className="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-400 transition-colors duration-200"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+        )}
+
         {showAddForm && activeTab === 'lorry-freight' && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
@@ -730,22 +1242,87 @@ const SalesPurchases: React.FC = () => {
                     ))}
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
-                    <textarea
-                      value={lorryFreightForm.notes}
-                      onChange={(e) => setLorryFreightForm({ ...lorryFreightForm, notes: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      rows={3}
-                    />
-                  </div>
-
                   <div className="flex space-x-3 pt-4">
                     <button
                       type="submit"
                       className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors duration-200"
                     >
                       Add Freight Record
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowAddForm(false)}
+                      className="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-400 transition-colors duration-200"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showAddForm && activeTab === 'vendors' && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-xl shadow-xl max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
+              <div className="p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Add Vendor</h3>
+                <form onSubmit={handleVendorSubmit} className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Vendor Name</label>
+                    <input
+                      type="text"
+                      value={vendorForm.name}
+                      onChange={(e) => setVendorForm({ ...vendorForm, name: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
+                    <textarea
+                      value={vendorForm.address}
+                      onChange={(e) => setVendorForm({ ...vendorForm, address: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      rows={3}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                    <input
+                      type="tel"
+                      value={vendorForm.phone}
+                      onChange={(e) => setVendorForm({ ...vendorForm, phone: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">GST Number</label>
+                    <input
+                      type="text"
+                      value={vendorForm.gstNumber}
+                      onChange={(e) => setVendorForm({ ...vendorForm, gstNumber: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Payment Terms (Days)</label>
+                    <input
+                      type="number"
+                      value={vendorForm.paymentTerms}
+                      onChange={(e) => setVendorForm({ ...vendorForm, paymentTerms: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                  <div className="flex space-x-3 pt-4">
+                    <button
+                      type="submit"
+                      className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors duration-200"
+                    >
+                      Add Vendor
                     </button>
                     <button
                       type="button"
@@ -772,14 +1349,7 @@ const SalesPurchases: React.FC = () => {
                 </p>
                 <div className="flex space-x-3">
                   <button
-                    onClick={() => {
-                      if (activeTab === 'purchases') {
-                        setPurchases(purchases.filter(p => p.id !== showDeleteConfirm));
-                      } else if (activeTab === 'lorry-freight') {
-                        setLorryFreights(lorryFreights.filter(f => f.id !== showDeleteConfirm));
-                      }
-                      setShowDeleteConfirm(null);
-                    }}
+                    onClick={() => deleteItem(showDeleteConfirm)}
                     className="flex-1 bg-red-600 text-white py-2 px-4 rounded-lg hover:bg-red-700 transition-colors duration-200"
                   >
                     Delete

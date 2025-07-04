@@ -22,12 +22,18 @@ const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
       ]
     },
     {
-      id: 'payables',
-      title: 'Payables & Receivables',
-      description: 'Complete financial management for purchases and sales',
+      id: 'sales-purchases',
+      title: 'Sales & Purchases',
+      description: 'Complete financial management for sales, purchases and freight',
       icon: CreditCard,
       color: 'from-blue-500 to-indigo-600',
-      features: ['Purchase management', 'Sales tracking', 'Outstanding amounts', 'Vendor management']
+      features: ['Purchase management', 'Sales tracking', 'Lorry freight', 'Vendor management'],
+      subModules: [
+        { name: 'Purchase Bills', desc: 'GST and cash bill management' },
+        { name: 'Sales Invoices', desc: 'Customer invoicing and tracking' },
+        { name: 'Lorry Freight', desc: 'Transport cost management' },
+        { name: 'Vendor Database', desc: 'Supplier relationship management' }
+      ]
     },
     {
       id: 'salaries',
@@ -38,12 +44,12 @@ const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
       features: ['Payroll processing', 'Attendance tracking', 'Wage calculation', 'Hamali management']
     },
     {
-      id: 'revenue',
-      title: 'By-Products & Revenue',
-      description: 'Track by-product sales, customer management and invoicing',
+      id: 'byproducts',
+      title: 'By-Products',
+      description: 'Track by-product inventory and sales analysis',
       icon: TrendingUp,
       color: 'from-pink-500 to-rose-600',
-      features: ['Sales tracking', 'Customer management', 'Revenue analysis', 'Invoice generation']
+      features: ['Inventory tracking', 'Sales analysis', 'Customer insights', 'Revenue optimization']
     },
     {
       id: 'electricity',
@@ -170,7 +176,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
                     ))}
                   </div>
 
-                  {/* Sub-modules for CMR Activity */}
+                  {/* Sub-modules for specific modules */}
                   {module.subModules && (
                     <div className="mt-6 pt-4 border-t border-gray-100">
                       <h4 className="text-sm font-medium text-gray-700 mb-3">Includes:</h4>

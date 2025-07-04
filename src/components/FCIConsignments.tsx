@@ -284,7 +284,7 @@ const FCIConsignments: React.FC = () => {
       return stock;
     });
     setRexinStickers(updatedStickerStocks);
-    saveRexinStickers(updatedStickerStickers);
+    saveRexinStickers(updatedStickerStocks);
   };
 
   const getStatusColor = (status: FCIConsignment['status']) => {
