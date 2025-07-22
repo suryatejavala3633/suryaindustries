@@ -23,12 +23,18 @@ import {
   PurchasePayment,
   SalesRecord,
   SalesPayment,
-  Vendor
+  Vendor,
+  ByProductProduction,
+  ByProductSale,
+  ByProductPayment
 } from '../types';
 
 // Local Storage Keys
 const STORAGE_KEYS = {
   BY_PRODUCTS: 'cmr_by_products',
+  BY_PRODUCT_PRODUCTIONS: 'cmr_by_product_productions',
+  BY_PRODUCT_SALES: 'cmr_by_product_sales',
+  BY_PRODUCT_PAYMENTS: 'cmr_by_product_payments',
   CUSTOMERS: 'cmr_customers',
   PRODUCTS: 'cmr_products',
   SALES: 'cmr_sales',
@@ -91,6 +97,39 @@ export const saveByProducts = (data: ByProduct[]) => {
 export const loadByProducts = (): ByProduct[] => {
   const data = loadFromLocalStorage<ByProduct>(STORAGE_KEYS.BY_PRODUCTS);
   console.log('Loaded by-products:', data);
+  return data;
+};
+
+export const saveByProductProductions = (data: ByProductProduction[]) => {
+  console.log('Saving by-product productions:', data);
+  saveToLocalStorage(STORAGE_KEYS.BY_PRODUCT_PRODUCTIONS, data);
+};
+
+export const loadByProductProductions = (): ByProductProduction[] => {
+  const data = loadFromLocalStorage<ByProductProduction>(STORAGE_KEYS.BY_PRODUCT_PRODUCTIONS);
+  console.log('Loaded by-product productions:', data);
+  return data;
+};
+
+export const saveByProductSales = (data: ByProductSale[]) => {
+  console.log('Saving by-product sales:', data);
+  saveToLocalStorage(STORAGE_KEYS.BY_PRODUCT_SALES, data);
+};
+
+export const loadByProductSales = (): ByProductSale[] => {
+  const data = loadFromLocalStorage<ByProductSale>(STORAGE_KEYS.BY_PRODUCT_SALES);
+  console.log('Loaded by-product sales:', data);
+  return data;
+};
+
+export const saveByProductPayments = (data: ByProductPayment[]) => {
+  console.log('Saving by-product payments:', data);
+  saveToLocalStorage(STORAGE_KEYS.BY_PRODUCT_PAYMENTS, data);
+};
+
+export const loadByProductPayments = (): ByProductPayment[] => {
+  const data = loadFromLocalStorage<ByProductPayment>(STORAGE_KEYS.BY_PRODUCT_PAYMENTS);
+  console.log('Loaded by-product payments:', data);
   return data;
 };
 
@@ -298,6 +337,9 @@ export const importAllData = (file: File): Promise<boolean> => {
 
         // Import all data
         if (data.byProducts) saveByProducts(data.byProducts);
+        if (data.byProductProductions) saveByProductProductions(data.byProductProductions);
+        if (data.byProductSales) saveByProductSales(data.byProductSales);
+        if (data.byProductPayments) saveByProductPayments(data.byProductPayments);
         if (data.customers) saveCustomers(data.customers);
         if (data.products) saveProducts(data.products);
         if (data.sales) saveSales(data.sales);
@@ -359,6 +401,12 @@ export const getStorageInfo = () => {
 const getAllLocalData = () => {
   return {
     byProducts: loadByProducts(),
+    byProductProductions: loadByProductProductions(),
+    byProductSales: loadByProductSales(),
+    byProductPayments: loadByProductPayments(),
+    byProductProductions: loadByProductProductions(),
+    byProductSales: loadByProductSales(),
+    byProductPayments: loadByProductPayments(),
     customers: loadCustomers(),
     products: loadProducts(),
     sales: loadSales(),

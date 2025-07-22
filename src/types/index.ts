@@ -166,6 +166,86 @@ export interface ByProduct {
   notes?: string;
 }
 
+export interface ByProductProduction {
+  id: string;
+  riceProductionId: string; // Link to rice production batch
+  ackNumber: string;
+  productionDate: string;
+  paddyUsed: number; // in quintals
+  riceProduced: number; // in quintals
+  byProducts: {
+    husk: number; // in quintals
+    branBoiled: number; // in quintals (if boiled rice)
+    branRaw: number; // in quintals (if raw rice)
+    brokenRice: number; // in quintals
+    param: number; // in quintals (small broken)
+    rejectionRice: number; // in quintals (black/red grains)
+    reSortedRice: number; // in quintals (color sorted rejection)
+    ash: number; // in quintals
+  };
+  yields: {
+    riceYield: number; // percentage
+    branYield: number; // percentage
+    brokenYield: number; // percentage
+    huskYield: number; // percentage
+    rejectionYield: number; // percentage
+  };
+  notes?: string;
+}
+
+export interface ByProductSale {
+  id: string;
+  saleDate: string;
+  invoiceNumber: string;
+  partyName: string;
+  partyPhone?: string;
+  partyAddress?: string;
+  items: ByProductSaleItem[];
+  subtotal: number;
+  gstAmount: number;
+  totalAmount: number;
+  paidAmount: number;
+  balanceAmount: number;
+  paymentStatus: 'pending' | 'partial' | 'paid';
+  paymentTerms: number; // days
+  dueDate: string;
+  notes?: string;
+}
+
+export interface ByProductSaleItem {
+  id: string;
+  productType: 'husk' | 'bran-boiled' | 'bran-raw' | 'broken-rice' | 'param' | 'rejection-rice' | 're-sorted-rice' | 'ash';
+  productName: string;
+  quantity: number; // in quintals
+  rate: number; // per quintal
+  gstRate: number; // percentage
+  amount: number;
+  gstAmount: number;
+  totalAmount: number;
+}
+
+export interface ByProductStock {
+  productType: 'husk' | 'bran-boiled' | 'bran-raw' | 'broken-rice' | 'param' | 'rejection-rice' | 're-sorted-rice' | 'ash';
+  productName: string;
+  totalProduced: number;
+  totalSold: number;
+  currentStock: number;
+  averageRate: number;
+  totalRevenue: number;
+  lastSaleDate?: string;
+}
+
+export interface ByProductPayment {
+  id: string;
+  saleId: string;
+  partyName: string;
+  amount: number;
+  paymentDate: string;
+  paymentMethod: 'cash' | 'cheque' | 'bank-transfer' | 'upi' | 'other';
+  referenceNumber?: string;
+  notes?: string;
+}
+
 export interface Customer {
   id: string;
   name: string;
