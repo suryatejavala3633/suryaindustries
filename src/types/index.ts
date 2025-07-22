@@ -168,11 +168,20 @@ export interface ByProduct {
 
 export interface ByProductProduction {
   id: string;
-  riceProductionId: string; // Link to rice production batch
-  ackNumber: string;
   productionDate: string;
-  paddyUsed: number; // in quintals
-  riceProduced: number; // in quintals
+  productType: 'husk' | 'bran-boiled' | 'bran-raw' | 'broken-rice' | 'param' | 'rejection-rice' | 're-sorted-rice' | 'ash';
+  productName: string;
+  quantity: number; // in quintals
+  correlatedACKs: number; // Number of ACKs produced around this date
+  yieldPerACK: number; // Calculated yield per ACK
+  notes?: string;
+}
+
+export interface ByProductProductionSummary {
+  id: string;
+  productionDate: string;
+  totalBoiledACKs: number; // ACKs produced on or around this date
+  totalRawACKs: number; // ACKs produced on or around this date
   byProducts: {
     husk: number; // in quintals
     branBoiled: number; // in quintals (if boiled rice)
@@ -182,13 +191,6 @@ export interface ByProductProduction {
     rejectionRice: number; // in quintals (black/red grains)
     reSortedRice: number; // in quintals (color sorted rejection)
     ash: number; // in quintals
-  };
-  yields: {
-    riceYield: number; // percentage
-    branYield: number; // percentage
-    brokenYield: number; // percentage
-    huskYield: number; // percentage
-    rejectionYield: number; // percentage
   };
   notes?: string;
 }
