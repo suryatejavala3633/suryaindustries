@@ -65,18 +65,33 @@ export interface GunnyReturn {
 export interface GunnyStock {
   id: string;
   type: '2024-25-new' | '2023-24-leftover';
-  quantity: number;
+  originalQuantity: number;
+  currentQuantity: number;
+  usedQuantity: number;
   source: 'new-bales' | 'received-with-paddy';
   dateReceived: string;
   notes?: string;
 }
 
+export interface GunnyUsage {
+  id: string;
+  stockId: string;
+  consignmentId: string;
+  ackNumber: string;
+  quantityUsed: number;
+  usageDate: string;
+  stockType: '2024-25-new' | '2023-24-leftover';
+  notes?: string;
+}
+
 export interface FRKStock {
   id: string;
-  quantity: number; // in kg
+  batchNumber: string;
+  originalQuantity: number; // in kg
+  currentQuantity: number; // in kg
+  usedQuantity: number; // in kg
   supplier: string;
   bags: number; // Each bag is 20 kg
-  batchNumber: string;
   certificateNumber: string;
   premixCertificateNumber: string;
   dateReceived: string;
@@ -86,6 +101,17 @@ export interface FRKStock {
   notes?: string;
 }
 
+export interface FRKUsage {
+  id: string;
+  stockId: string;
+  batchNumber: string;
+  consignmentId: string;
+  ackNumber: string;
+  quantityUsed: number; // in kg
+  usageDate: string;
+  supplier: string;
+  notes?: string;
+}
 export interface RiceProduction {
   id: string;
   ackNumber: string;

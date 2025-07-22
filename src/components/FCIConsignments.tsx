@@ -16,6 +16,8 @@ const FCIConsignments: React.FC = () => {
   const [frkStocks, setFrkStocks] = useState<FRKStock[]>([]);
   const [rexinStickers, setRexinStickers] = useState<RexinSticker[]>([]);
   const [lorryFreights, setLorryFreights] = useState<LorryFreight[]>([]);
+  const [gunnyUsage, setGunnyUsage] = useState<GunnyUsage[]>([]);
+  const [frkUsage, setFrkUsage] = useState<FRKUsage[]>([]);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingConsignment, setEditingConsignment] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
@@ -54,6 +56,8 @@ const FCIConsignments: React.FC = () => {
     setFrkStocks(loadFRKStocks());
     setRexinStickers(loadRexinStickers());
     setLorryFreights(loadLorryFreights());
+    setGunnyUsage(loadGunnyUsage());
+    setFrkUsage(loadFRKUsage());
   }, []);
 
   // Auto-save data when state changes
@@ -139,25 +143,82 @@ const FCIConsignments: React.FC = () => {
   };
 
   const updateStockQuantities = (consignment: FCIConsignment) => {
-    // Update gunny stock
-    const updatedGunnyStocks = gunnyStocks.map(stock => {
-      if (stock.type === consignment.gunnyType && stock.quantity >= consignment.totalBags) {
-        return { ...stock, quantity: stock.quantity - consignment.totalBags };
+    // Update gunny stock with batch-wise deduction
+    let remainingGunnyNeeded = consignment.totalBags;
+    const updatedGunnyStocks = [...gunnyStocks];
+    const newGunnyUsage = [...gunnyUsage];
+
+    for (let i = 0; i < updatedGunnyStocks.length && remainingGunnyNeeded > 0; i++) {
+      const stock = updatedGunnyStocks[i];
+      if (stock.type === consignment.gunnyType && stock.currentQuantity > 0) {
+        const quantityToUse = Math.min(stock.currentQuantity, remainingGunnyNeeded);
+        
+        // Update stock quantities
+        updatedGunnyStocks[i] = {
+          ...stock,
+          currentQuantity: stock.currentQuantity - quantityToUse,
+          usedQuantity: stock.usedQuantity + quantityToUse
+        };
+        
+        // Create usage record
+        newGunnyUsage.push({
+          id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+          stockId: stock.id,
+          consignmentId: consignment.id,
+          ackNumber: consignment.ackNumber,
+          quantityUsed: quantityToUse,
+          usageDate: consignment.consignmentDate,
+          stockType: stock.type,
+          notes: `Used for FCI consignment ${consignment.ackNumber}`
+        });
+        
+        remainingGunnyNeeded -= quantityToUse;
       }
-      return stock;
-    });
+    }
+    
     setGunnyStocks(updatedGunnyStocks);
     saveGunnyStocks(updatedGunnyStocks);
+    setGunnyUsage(newGunnyUsage);
+    saveGunnyUsage(newGunnyUsage);
 
-    // Update FRK stock
-    const updatedFrkStocks = frkStocks.map(stock => {
-      if (stock.quantity >= consignment.frkQuantity) {
-        return { ...stock, quantity: stock.quantity - consignment.frkQuantity };
+    // Update FRK stock with batch-wise deduction
+    let remainingFRKNeeded = consignment.frkQuantity;
+    const updatedFrkStocks = [...frkStocks];
+    const newFrkUsage = [...frkUsage];
+
+    for (let i = 0; i < updatedFrkStocks.length && remainingFRKNeeded > 0; i++) {
+      const stock = updatedFrkStocks[i];
+      if (stock.currentQuantity > 0) {
+        const quantityToUse = Math.min(stock.currentQuantity, remainingFRKNeeded);
+        
+        // Update stock quantities
+        updatedFrkStocks[i] = {
+          ...stock,
+          currentQuantity: stock.currentQuantity - quantityToUse,
+          usedQuantity: stock.usedQuantity + quantityToUse
+        };
+        
+        // Create usage record
+        newFrkUsage.push({
+          id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+          stockId: stock.id,
+          batchNumber: stock.batchNumber,
+          consignmentId: consignment.id,
+          ackNumber: consignment.ackNumber,
+          quantityUsed: quantityToUse,
+          usageDate: consignment.consignmentDate,
+          supplier: stock.supplier,
+          notes: `Used for FCI consignment ${consignment.ackNumber}`
+        });
+        
+        remainingFRKNeeded -= quantityToUse;
       }
-      return stock;
-    });
+    }
+    
     setFrkStocks(updatedFrkStocks);
     saveFRKStocks(updatedFrkStocks);
+    setFrkUsage(newFrkUsage);
+    saveFRKUsage(newFrkUsage);
 
     // Update sticker stock
     const updatedStickerStocks = rexinStickers.map(stock => {
@@ -252,25 +313,54 @@ const FCIConsignments: React.FC = () => {
   };
 
   const restoreStockQuantities = (consignment: FCIConsignment) => {
-    // Restore gunny stock
+    // Remove usage records for this consignment
+    const consignmentGunnyUsage = gunnyUsage.filter(usage => usage.consignmentId === consignment.id);
+    const consignmentFrkUsage = frkUsage.filter(usage => usage.consignmentId === consignment.id);
+    
+    // Restore gunny stock quantities
     const updatedGunnyStocks = gunnyStocks.map(stock => {
-      if (stock.type === consignment.gunnyType) {
-        return { ...stock, quantity: stock.quantity + consignment.totalBags };
+      const usageForThisStock = consignmentGunnyUsage.filter(usage => usage.stockId === stock.id);
+      const totalUsedFromThisStock = usageForThisStock.reduce((sum, usage) => sum + usage.quantityUsed, 0);
+      
+      if (totalUsedFromThisStock > 0) {
+        return {
+          ...stock,
+          currentQuantity: stock.currentQuantity + totalUsedFromThisStock,
+          usedQuantity: stock.usedQuantity - totalUsedFromThisStock
+        };
       }
       return stock;
     });
+    
     setGunnyStocks(updatedGunnyStocks);
     saveGunnyStocks(updatedGunnyStocks);
 
-    // Restore FRK stock
-    const updatedFrkStocks = frkStocks.map((stock, index) => {
-      if (index === 0) { // Add to first available stock
-        return { ...stock, quantity: stock.quantity + consignment.frkQuantity };
+    // Restore FRK stock quantities
+    const updatedFrkStocks = frkStocks.map(stock => {
+      const usageForThisStock = consignmentFrkUsage.filter(usage => usage.stockId === stock.id);
+      const totalUsedFromThisStock = usageForThisStock.reduce((sum, usage) => sum + usage.quantityUsed, 0);
+      
+      if (totalUsedFromThisStock > 0) {
+        return {
+          ...stock,
+          currentQuantity: stock.currentQuantity + totalUsedFromThisStock,
+          usedQuantity: stock.usedQuantity - totalUsedFromThisStock
+        };
       }
       return stock;
     });
+    
     setFrkStocks(updatedFrkStocks);
     saveFRKStocks(updatedFrkStocks);
+    
+    // Remove usage records
+    const updatedGunnyUsage = gunnyUsage.filter(usage => usage.consignmentId !== consignment.id);
+    const updatedFrkUsage = frkUsage.filter(usage => usage.consignmentId !== consignment.id);
+    
+    setGunnyUsage(updatedGunnyUsage);
+    saveGunnyUsage(updatedGunnyUsage);
+    setFrkUsage(updatedFrkUsage);
+    saveFRKUsage(updatedFrkUsage);
 
     // Restore sticker stock
     const updatedStickerStocks = rexinStickers.map((stock, index) => {

@@ -16,6 +16,8 @@ import {
   RiceProduction,
   GunnyStock,
   FRKStock,
+  GunnyUsage,
+  FRKUsage,
   RexinSticker,
   ReconciliationRecord,
   OldGunnyDispatch,
@@ -52,6 +54,8 @@ const STORAGE_KEYS = {
   REXIN_STICKERS: 'cmr_rexin_stickers',
   RECONCILIATIONS: 'cmr_reconciliations',
   GUNNY_DISPATCHES: 'cmr_gunny_dispatches',
+  GUNNY_USAGE: 'cmr_gunny_usage',
+  FRK_USAGE: 'cmr_frk_usage',
   PURCHASES: 'cmr_purchases',
   PURCHASE_PAYMENTS: 'cmr_purchase_payments',
   SALES_RECORDS: 'cmr_sales_records',
@@ -196,9 +200,14 @@ export const loadRiceProductions = (): RiceProduction[] => loadFromLocalStorage(
 export const saveGunnyStocks = (data: GunnyStock[]) => saveToLocalStorage(STORAGE_KEYS.GUNNY_STOCKS, data);
 export const loadGunnyStocks = (): GunnyStock[] => loadFromLocalStorage(STORAGE_KEYS.GUNNY_STOCKS);
 
+export const saveGunnyUsage = (data: GunnyUsage[]) => saveToLocalStorage(STORAGE_KEYS.GUNNY_USAGE, data);
+export const loadGunnyUsage = (): GunnyUsage[] => loadFromLocalStorage(STORAGE_KEYS.GUNNY_USAGE);
+
 export const saveFRKStocks = (data: FRKStock[]) => saveToLocalStorage(STORAGE_KEYS.FRK_STOCKS, data);
 export const loadFRKStocks = (): FRKStock[] => loadFromLocalStorage(STORAGE_KEYS.FRK_STOCKS);
 
+export const saveFRKUsage = (data: FRKUsage[]) => saveToLocalStorage(STORAGE_KEYS.FRK_USAGE, data);
+export const loadFRKUsage = (): FRKUsage[] => loadFromLocalStorage(STORAGE_KEYS.FRK_USAGE);
 export const saveRexinStickers = (data: RexinSticker[]) => saveToLocalStorage(STORAGE_KEYS.REXIN_STICKERS, data);
 export const loadRexinStickers = (): RexinSticker[] => loadFromLocalStorage(STORAGE_KEYS.REXIN_STICKERS);
 
@@ -420,7 +429,9 @@ const getAllLocalData = () => {
     lorryFreights: loadLorryFreights(),
     riceProductions: loadRiceProductions(),
     gunnyStocks: loadGunnyStocks(),
+    gunnyUsage: loadGunnyUsage(),
     frkStocks: loadFRKStocks(),
+    frkUsage: loadFRKUsage(),
     rexinStickers: loadRexinStickers(),
     reconciliations: loadReconciliations(),
     gunnyDispatches: loadGunnyDispatches(),
