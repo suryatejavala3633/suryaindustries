@@ -140,6 +140,21 @@ const OperationsDashboard: React.FC = () => {
     return 'from-red-500 to-red-600';
   };
 
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'dispatched':
+        return 'bg-green-100 text-green-800';
+      case 'in-transit':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'dumping-done':
+        return 'bg-blue-100 text-blue-800';
+      case 'qc-passed':
+        return 'bg-purple-100 text-purple-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
+
   const ProgressBar: React.FC<{ current: number; total: number; label: string }> = ({ current, total, label }) => {
     const percentage = getProgressPercentage(current, total);
     const colorClass = getProgressColor(percentage);
@@ -688,21 +703,21 @@ const OperationsDashboard: React.FC = () => {
                 <h4 className="font-medium text-gray-700 mb-3">Performance Metrics</h4>
                 <div className="space-y-3">
                   <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-600">ACK Target:</span>
+                    <span className="text-sm text-gray-600">Production Efficiency:</span>
                     <span className="font-semibold text-green-600">
-                      {formatNumber(ackStats.totalPossibleACKs)} ACKs
+                      {getProgressPercentage(ackStats.acksProduced, ackStats.totalPossibleACKs)}%
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-600">Delivery Progress:</span>
+                    <span className="text-sm text-gray-600">Delivery Rate:</span>
                     <span className="font-semibold text-blue-600">
-                      {getProgressPercentage(ackStats.acksDelivered, ackStats.totalPossibleACKs)}%
+                      {ackStats.acksProduced > 0 ? getProgressPercentage(ackStats.acksDelivered, ackStats.acksProduced) : 0}%
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-600">FRK Status:</span>
-                    <span className={`font-semibold ${stockStatus.frk.sufficient ? 'text-green-600' : 'text-red-600'}`}>
-                      {stockStatus.frk.sufficient ? 'Sufficient' : 'Low Stock'}
+                    <span className="text-sm text-gray-600">Pending Production:</span>
+                    <span className="font-semibold text-orange-600">
+                      {formatNumber(ackStats.totalPossibleACKs - ackStats.acksProduced)} ACKs
                     </span>
                   </div>
                 </div>
