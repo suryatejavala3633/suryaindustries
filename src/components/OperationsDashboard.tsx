@@ -418,16 +418,13 @@ const OperationsDashboard: React.FC = () => {
                 <div className="bg-orange-50 rounded-lg p-4">
                   <h4 className="font-medium text-orange-900 mb-3">FRK Stock</h4>
                   <ProgressBar 
-                    current={stockStatus.frk.remaining} 
-                    total={stockStatus.frk.required} 
-                    label={`Available vs Required: ${formatDecimal(stockStatus.frk.remaining)}/${formatDecimal(stockStatus.frk.required)} kg`}
+                    current={stockStatus.frk.used} 
+                    total={stockStatus.frk.total} 
+                    label="Usage Progress" 
                   />
-                  <div className={`text-xs ${stockStatus.frk.sufficient ? 'text-green-700' : 'text-red-700'}`}>
-                    {stockStatus.frk.sufficient ? (
-                      <>Sufficient stock for all {ackStats.totalPossibleACKs} ACKs</>
-                    ) : (
-                      <>Shortage: {formatDecimal(stockStatus.frk.shortage)} kg ({Math.ceil(stockStatus.frk.shortage / 290)} ACKs affected)</>
-                    )}
+                  <div className="text-xs text-orange-700">
+                    Remaining: {formatDecimal(stockStatus.frk.remaining)} kg
+                    ({Math.floor(stockStatus.frk.remaining / 290)} ACKs possible)
                   </div>
                 </div>
 
@@ -691,21 +688,21 @@ const OperationsDashboard: React.FC = () => {
                 <h4 className="font-medium text-gray-700 mb-3">Performance Metrics</h4>
                 <div className="space-y-3">
                   <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-600">Production Efficiency:</span>
+                    <span className="text-sm text-gray-600">ACK Target:</span>
                     <span className="font-semibold text-green-600">
-                      {getProgressPercentage(ackStats.acksProduced, ackStats.totalPossibleACKs)}%
+                      {formatNumber(ackStats.totalPossibleACKs)} ACKs
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-600">Delivery Rate:</span>
+                    <span className="text-sm text-gray-600">Delivery Progress:</span>
                     <span className="font-semibold text-blue-600">
-                      {ackStats.acksProduced > 0 ? getProgressPercentage(ackStats.acksDelivered, ackStats.acksProduced) : 0}%
+                      {getProgressPercentage(ackStats.acksDelivered, ackStats.totalPossibleACKs)}%
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-600">Stock Utilization:</span>
-                    <span className="font-semibold text-purple-600">
-                      {stockStatus.gunnies.total > 0 ? getProgressPercentage(stockStatus.gunnies.used, stockStatus.gunnies.total) : 0}%
+                    <span className="text-sm text-gray-600">FRK Status:</span>
+                    <span className={`font-semibold ${stockStatus.frk.sufficient ? 'text-green-600' : 'text-red-600'}`}>
+                      {stockStatus.frk.sufficient ? 'Sufficient' : 'Low Stock'}
                     </span>
                   </div>
                 </div>
