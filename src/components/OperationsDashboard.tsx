@@ -48,13 +48,18 @@ const OperationsDashboard: React.FC = () => {
 
   // Calculate ACK delivery statistics
   const ackStats = useMemo(() => {
-    // Calculate total ACKs from available paddy
-    // 1 ACK = 287.1 Qtls Rice, so total ACKs = total paddy / 287.1 (rounded up)
+    // Calculate total ACKs from available paddy with outturn rate
+    // Formula: (Total Paddy × 0.68 outturn) ÷ 287.1 Qtls per ACK (rounded up)
     const totalPaddyQuintals = paddyStats.totalQuintals;
+    const outturnRate = 0.68; // 68% outturn for boiled rice from paddy
     const ricePerAck = 287.1; // Quintals per ACK
     
-    // Total ACKs possible from available paddy (rounded up to next higher number)
-    const totalPossibleACKs = Math.ceil(totalPaddyQuintals / ricePerAck);
+    // Total rice possible from paddy with outturn rate
+    const totalRicePossible = totalPaddyQuintals * outturnRate;
+    
+    // Total ACKs possible from rice (rounded up to next higher number)
+    const exactACKs = totalRicePossible / ricePerAck;
+    const totalPossibleACKs = Math.ceil(exactACKs);
     
     // ACKs produced (from rice production records)
     const acksProduced = riceProductions.reduce((sum, prod) => {
@@ -75,6 +80,8 @@ const OperationsDashboard: React.FC = () => {
     
     return {
       totalPossibleACKs,
+      exactACKs,
+      totalRicePossible,
       acksProduced,
       acksDelivered,
       acksInTransit,
@@ -319,7 +326,7 @@ const OperationsDashboard: React.FC = () => {
           <StatsCard
             title="ACKs to Deliver"
             value={`${formatNumber(ackStats.totalPossibleACKs)} ACKs`}
-            subtitle={`From ${formatWeight(paddyStats.totalQuintals)} paddy (${formatDecimal(paddyStats.totalQuintals / 287.1, 1)} exact)`}
+            subtitle={`From ${formatWeight(paddyStats.totalQuintals)} paddy (${formatDecimal(ackStats.exactACKs, 2)} exact)`}
             icon={<Factory className="h-6 w-6" />}
             color="from-emerald-500 to-emerald-600"
           />
@@ -586,9 +593,9 @@ const OperationsDashboard: React.FC = () => {
                 </div>
                 <h4 className="font-medium text-gray-900 mb-2">Rice Capacity</h4>
                 <div className="text-2xl font-bold text-blue-600 mb-1">
-                  {Math.floor((paddyStats.totalQuintals * 0.675) / 287.1)}
+                  {ackStats.totalPossibleACKs}
                 </div>
-                <div className="text-xs text-gray-500">Max possible ACKs</div>
+                <div className="text-xs text-gray-500">Target ACKs (68% outturn)</div>
               </div>
 
               {/* Gunny Constraint */}
@@ -634,7 +641,7 @@ const OperationsDashboard: React.FC = () => {
               <div className="text-sm text-gray-600">
                 {(() => {
                   const constraints = [
-                    { name: 'Rice Production', capacity: Math.floor((paddyStats.totalQuintals * 0.675) / 287.1) },
+                    { name: 'Rice Production', capacity: ackStats.totalPossibleACKs },
                     { name: 'Gunny Bags', capacity: Math.floor(stockStatus.gunnies.remaining / 580) },
                     { name: 'FRK Stock', capacity: Math.floor(stockStatus.frk.remaining / 290) },
                     { name: 'Rexin Stickers', capacity: Math.floor(stockStatus.stickers.remaining / 580) }
@@ -706,19 +713,23 @@ const OperationsDashboard: React.FC = () => {
                     <span className="text-sm text-gray-600">Production Efficiency:</span>
                     <span className="font-semibold text-green-600">
                       {getProgressPercentage(ackStats.acksProduced, ackStats.totalPossibleACKs)}%
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-blue-700">Rice Possible (68% outturn):</span>
+                    <span className="font-semibold text-blue-900">{formatWeight(ackStats.totalRicePossible)}</span>
+                  </div>
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-gray-600">Delivery Rate:</span>
                     <span className="font-semibold text-blue-600">
                       {ackStats.acksProduced > 0 ? getProgressPercentage(ackStats.acksDelivered, ackStats.acksProduced) : 0}%
-                    </span>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-blue-700">ACKs Target:</span>
+                    <span className="font-semibold text-blue-900">{formatNumber(ackStats.totalPossibleACKs)} ACKs</span>
                   </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-600">Pending Production:</span>
-                    <span className="font-semibold text-orange-600">
-                      {formatNumber(ackStats.totalPossibleACKs - ackStats.acksProduced)} ACKs
                     </span>
+                    <span className="text-sm text-blue-700">Exact ACKs:</span>
+                    <span className="font-semibold text-blue-900">{formatDecimal(ackStats.exactACKs, 2)}</span>
                   </div>
                 </div>
               </div>
