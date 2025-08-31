@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Package, Factory, Truck, Sticker, TrendingUp, Users, Zap, Home, HardDrive, CreditCard } from 'lucide-react';
+import { Package, Factory, Truck, Sticker, TrendingUp, Users, Zap, Home, HardDrive, CreditCard, BarChart3 } from 'lucide-react';
 import LandingPage from './LandingPage';
+import OperationsDashboard from './OperationsDashboard';
 import Dashboard from './Dashboard';
 import RiceProduction from './RiceProduction';
 import FCIConsignments from './FCIConsignments';
@@ -11,7 +12,7 @@ import ElectricityBillCalculator from './ElectricityBillCalculator';
 import DataBackupManager from './DataBackupManager';
 import SalesPurchases from './SalesPurchases';
 
-type TabType = 'home' | 'cmr-activity' | 'sales-purchases' | 'salaries' | 'byproducts' | 'electricity' | 'backup';
+type TabType = 'home' | 'dashboard' | 'cmr-activity' | 'sales-purchases' | 'salaries' | 'byproducts' | 'electricity' | 'backup';
 type CMRTabType = 'paddy' | 'production' | 'fci' | 'stock';
 
 const MainApp: React.FC = () => {
@@ -20,6 +21,7 @@ const MainApp: React.FC = () => {
 
   const mainTabs = [
     { id: 'home', label: 'Home', icon: Home },
+    { id: 'dashboard', label: 'Operations Dashboard', icon: BarChart3 },
     { id: 'cmr-activity', label: 'CMR Activity', icon: Factory },
     { id: 'sales-purchases', label: 'Sales & Purchases', icon: CreditCard },
     { id: 'salaries', label: 'Salaries & Wages', icon: Users },
@@ -42,6 +44,10 @@ const MainApp: React.FC = () => {
   const renderContent = () => {
     if (activeTab === 'home') {
       return <LandingPage onNavigate={handleNavigate} />;
+    }
+
+    if (activeTab === 'dashboard') {
+      return <OperationsDashboard />;
     }
 
     if (activeTab === 'cmr-activity') {

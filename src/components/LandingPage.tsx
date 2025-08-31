@@ -1,5 +1,5 @@
 import React from 'react';
-import { Factory, Package, Truck, Sticker, TrendingUp, Users, Zap, FileCheck, ArrowRight, Phone, Mail, MapPin, Award, Shield, Clock, CreditCard } from 'lucide-react';
+import { Factory, Package, Truck, Sticker, TrendingUp, Users, Zap, FileCheck, ArrowRight, Phone, Mail, MapPin, Award, Shield, Clock, CreditCard, BarChart3 } from 'lucide-react';
 
 interface LandingPageProps {
   onNavigate: (tab: string) => void;
@@ -7,6 +7,20 @@ interface LandingPageProps {
 
 const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
   const modules = [
+    {
+      id: 'dashboard',
+      title: 'Operations Dashboard',
+      description: 'Complete overview of paddy processing, ACK production and delivery status',
+      icon: BarChart3,
+      color: 'from-indigo-500 to-purple-600',
+      features: ['ACK delivery tracking', 'Production progress', 'Stock constraints', 'Performance metrics'],
+      subModules: [
+        { name: 'ACK Progress', desc: 'Track delivered vs pending ACKs' },
+        { name: 'Stock Analysis', desc: 'Monitor inventory constraints' },
+        { name: 'Production Flow', desc: 'Paddy to rice conversion tracking' },
+        { name: 'Performance KPIs', desc: 'Key performance indicators' }
+      ]
+    },
     {
       id: 'cmr-activity',
       title: 'CMR Activity',
