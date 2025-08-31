@@ -7,7 +7,10 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "firebase:build": "npm run build",
+    "firebase:deploy": "firebase deploy --only hosting",
+    "firebase:serve": "firebase serve"
   },
   "dependencies": {
     "lucide-react": "^0.344.0",
