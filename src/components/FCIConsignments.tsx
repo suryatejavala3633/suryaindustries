@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Truck, Package, AlertCircle, CheckCircle, Clock, Edit, Save, X, Trash2 } from 'lucide-react';
-import { FCIConsignment, RiceProduction, GunnyStock, FRKStock, RexinSticker, LorryFreight } from '../types';
+import { FCIConsignment, RiceProduction, GunnyStock, FRKStock, RexinSticker, LorryFreight, GunnyUsage, FRKUsage } from '../types';
 import { formatNumber, formatDecimal, formatCurrency, formatWeight } from '../utils/calculations';
 import { 
   saveFCIConsignments, loadFCIConsignments, saveRiceProductions, loadRiceProductions,
   saveGunnyStocks, loadGunnyStocks, saveFRKStocks, loadFRKStocks,
-  saveRexinStickers, loadRexinStickers, saveLorryFreights, loadLorryFreights
+  saveRexinStickers, loadRexinStickers, saveLorryFreights, loadLorryFreights,
+  loadGunnyUsage, saveGunnyUsage, loadFRKUsage, saveFRKUsage
 } from '../utils/dataStorage';
 import StatsCard from './StatsCard';
 
